@@ -1,0 +1,6 @@
+[workspace]
+members = ["defame", "defame-test"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"

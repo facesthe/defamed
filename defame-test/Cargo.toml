@@ -1,0 +1,7 @@
+[package]
+name = "defame-test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+defame = { path = "../defame" }
