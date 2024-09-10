@@ -56,12 +56,21 @@ pub fn item_fn(input: syn::ItemFn) -> ProcOutput {
         Err(e) => return e.to_compile_error().into(),
     };
 
+    if !params.is_valid_sequence() {
+        return syn::Error::new(
+            sig.ident.span(),
+            "Default parameters must be placed after all positional parameters",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     let permuted = params.permute_params();
     let stripped_attrs = params.to_punctuated();
     let mut new_sig = sig.clone();
     new_sig.inputs = stripped_attrs;
 
-    let generated = macro_gen::generate_func_macro(new_sig.ident.clone(), permuted);
+    let generated = macro_gen::generate_func_macro(vis.clone(), new_sig.ident.clone(), permuted);
 
     let mod_fn = syn::ItemFn {
         attrs,

@@ -1,24 +1,21 @@
 //! Function macro generators
 
-use std::collections::HashMap;
-
-use proc_macro2 as pm2;
+use proc_macro2::{self as pm2, Span};
 use quote::{quote, ToTokens};
 use syn::{
     punctuated::Punctuated,
     token::{Comma, Semi},
+    Visibility,
 };
 
-use crate::{
-    params::{self, PermutedParam},
-    traits::ToMacroPattern,
-};
+use crate::{params::PermutedParam, traits::ToMacroPattern};
 
 /// Generate a macro with all permutations of positional, named and default parameters.
 ///
 /// This macro generates code that calls the actual function,
 /// while reorderng and substituting parameters as needed.
 pub fn generate_func_macro(
+    vis: Visibility,
     func_ident: syn::Ident,
     params: Vec<Vec<PermutedParam>>,
 ) -> pm2::TokenStream {
@@ -36,19 +33,28 @@ pub fn generate_func_macro(
 
             quote! {
                 (#macro_signature) => {
-                    // to be replaced with actual function call
                     #func_ident(#func_signature)
                 }
             }
-
-            //   asd
         })
         .collect();
 
+    let macro_mod = syn::Ident::new(
+        &format!("{}_macros", func_ident.to_token_stream().to_string()),
+        Span::call_site(),
+    );
+
     quote! {
-        macro_rules! #func_ident (
-            #macro_matches
-        );
+        mod #macro_mod {
+            macro_rules! #func_ident (
+                #macro_matches
+            );
+
+            pub(crate) use #func_ident;
+        }
+
+        #vis use #macro_mod::*;
+        // #vis use #func_ident!;
     }
 }
 
@@ -77,32 +83,4 @@ fn create_func_call_signature(
         .collect();
 
     seq.to_token_stream()
-}
-
-fn some_func(
-    // positional and named are the same
-    pos_a: bool,
-    pos_b: bool,
-
-    // will have the #[default] attribute
-    opt_a: bool,
-) {
-}
-
-macro_rules! some_func (
-    ($pos_a_val: expr, $pos_b_val: expr) => {
-        some_func($pos_a_val, $pos_b_val, false);
-    };
-    (pos_a = $pos_a_val: expr, pos_b = $pos_b_val: expr) => {
-        some_func($pos_a_val, $pos_b_val, false);
-    };
-    (pos_a = $pos_a_val: expr, pos_b = $pos_b_val: expr, opt_a = $opt_a_val: expr) => {
-        some_func($pos_a_val, $pos_b_val, false);
-    };
-);
-
-fn test() {
-    some_func!(!false, false);
-    some_func!(pos_a = !false, pos_b = false, opt_a = true);
-    // some_func!(pos_a = true, pos_b = false, opt_a = true);
 }

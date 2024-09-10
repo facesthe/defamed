@@ -1,10 +1,10 @@
 //! Function param stuff
 
 use core::panic;
-use std::{clone, fmt::Debug};
+use std::fmt::Debug;
 
 use quote::{quote, ToTokens};
-use syn::{punctuated, spanned::Spanned};
+use syn::spanned::Spanned;
 
 use crate::traits::ToMacroPattern;
 
@@ -112,7 +112,7 @@ impl ToMacroPattern for PermutedParam {
                 );
                 Some(quote! {#pat = $#val: expr})
             }
-            PermutedParam::DefaultUnused(inner) => None,
+            PermutedParam::DefaultUnused(_) => None,
         }
     }
 
@@ -290,7 +290,7 @@ impl FunctionParams {
     /// Checks if the token sequence adheres to the following:
     /// - Default parameters must be at the end of the sequence
     /// TODO: write a test for this
-    fn is_valid_sequence(&self) -> bool {
+    pub fn is_valid_sequence(&self) -> bool {
         let mut iter = self.params.iter();
 
         // advance to first default parameter
@@ -298,7 +298,7 @@ impl FunctionParams {
             if let Some(param) = iter.next() {
                 match param.default_value {
                     ParamAttr::None => (),
-                    _ => return false,
+                    _ => break,
                 }
             } else {
                 return true;
@@ -321,7 +321,7 @@ impl FunctionParams {
     /// - Remaining named parameters come after positional parameters, in all possible permutations
     /// - Default used parameters are next, in all possible permutations
     /// - Default unused parameters are last, without permutations
-    pub fn permute_params(&self) -> (Vec<Vec<PermutedParam>>) {
+    pub fn permute_params(&self) -> Vec<Vec<PermutedParam>> {
         let required_params = self
             .params
             .iter()
@@ -526,9 +526,8 @@ impl FunctionParam {
 mod tests {
     use super::*;
 
-    use proc_macro::TokenStream;
     use quote::quote;
-    use syn::{punctuated::Punctuated, token::Comma, FnArg, PatType};
+    use syn::{punctuated::Punctuated, token::Comma, FnArg};
 
     #[test]
     fn test_permute_named() {
