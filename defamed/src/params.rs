@@ -51,7 +51,7 @@ pub enum ParamAttr {
 }
 
 /// Permutation of positional and named parameters
-#[derive(Clone, PartialEq)]
+#[derive(Clone)]
 pub enum PermutedParam {
     Positional(FunctionParam),
     Named(FunctionParam),
@@ -115,6 +115,31 @@ impl ToMacroPattern for PermutedParam {
             PermutedParam::DefaultUnused(inner) => None,
         }
     }
+
+    fn to_func_call_pattern(&self) -> proc_macro2::TokenStream {
+        match self {
+            PermutedParam::Positional(inner)
+            | PermutedParam::Named(inner)
+            | PermutedParam::DefaultUsed(inner) => {
+                let pat = &inner.pat;
+                let val = syn::Ident::new(
+                    &format!("{}_val", pat.to_token_stream().to_string()),
+                    pat.span(),
+                );
+
+                quote! {$#val}
+            }
+
+            PermutedParam::DefaultUnused(inner) => {
+                // asd
+                match &inner.default_value {
+                    ParamAttr::None => unimplemented!("invalid inner value"),
+                    ParamAttr::Default => quote! {std::default::Default::default()},
+                    ParamAttr::Value(v) => quote! {#v},
+                }
+            }
+        }
+    }
 }
 
 // simple string matching
@@ -122,6 +147,27 @@ impl PartialEq for FunctionParam {
     fn eq(&self, other: &Self) -> bool {
         self.pat.to_token_stream().to_string() == other.pat.to_token_stream().to_string()
         // && self.ty == other.ty && self.default_value == other.default_value
+    }
+}
+
+/// Compares the inner values, since they are all the same type
+impl PartialEq for PermutedParam {
+    fn eq(&self, other: &Self) -> bool {
+        let inner = match self {
+            PermutedParam::Positional(_i) => _i,
+            PermutedParam::Named(_i) => _i,
+            PermutedParam::DefaultUsed(_i) => _i,
+            PermutedParam::DefaultUnused(_i) => _i,
+        };
+
+        let othr = match other {
+            PermutedParam::Positional(_i) => _i,
+            PermutedParam::Named(_i) => _i,
+            PermutedParam::DefaultUsed(_i) => _i,
+            PermutedParam::DefaultUnused(_i) => _i,
+        };
+
+        inner == othr
     }
 }
 
@@ -295,9 +341,9 @@ impl FunctionParams {
 
         let named_permute = (0..=required_params.len())
             .into_iter()
-            .map(|i| {
-                let opp_idx = required_params.len() - i;
-                let (positional, named) = required_params.split_at(opp_idx);
+            .map(|idx| {
+                // let opp_idx = required_params.len() - i;
+                let (positional, named) = required_params.split_at(idx);
 
                 let positional = positional
                     .iter()
