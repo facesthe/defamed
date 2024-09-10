@@ -37,7 +37,7 @@ pub fn generate_func_macro(
             quote! {
                 (#macro_signature) => {
                     // to be replaced with actual function call
-                    #func_ident(#func_signature);
+                    #func_ident(#func_signature)
                 }
             }
 

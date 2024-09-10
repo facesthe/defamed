@@ -1,11 +1,6 @@
 fn main() {
-    println!("Hello, world!");
+    unimplemented!("There is no main. Run tests instead");
 }
-
-// #[defame::defame]
-// fn aaa(pos: bool = 0) -> bool {
-//     false
-// }
 
 #[cfg(test)]
 mod tests {
