@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 defame = { path = "../defame" }
+
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
