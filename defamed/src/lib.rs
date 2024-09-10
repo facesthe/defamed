@@ -13,7 +13,7 @@ use quote::ToTokens;
 pub(crate) const DEFAULT_ATTR: &str = "default";
 
 #[proc_macro_attribute]
-pub fn defame(_: pm::TokenStream, input: pm::TokenStream) -> pm::TokenStream {
+pub fn defamed(_: pm::TokenStream, input: pm::TokenStream) -> pm::TokenStream {
     let x = syn::parse::<syn::ItemFn>(input.clone());
 
     let res = match (syn::parse::<syn::ItemFn>(input.clone())) {

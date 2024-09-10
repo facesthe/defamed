@@ -1,10 +1,10 @@
 [package]
-name = "defame-test"
+name = "defamed-test"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-defame = { path = "../defame" }
+defamed = { path = "../defamed" }
 
 syn = { version = "2", features = ["full"] }
 quote = "1"

@@ -1,5 +1,5 @@
 [workspace]
-members = ["defame", "defame-test"]
+members = ["defamed", "defamed-test"]
 resolver = "2"
 
 [workspace.package]

@@ -36,7 +36,7 @@ mod tests {
 // }
 
 /// Hwllo everynyan
-#[defame::defame]
+#[defamed::defamed]
 fn asd(first_item: i32, #[default] second_item: i32) -> i32 {
     0
 }
