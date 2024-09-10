@@ -1,4 +1,4 @@
-# defame
+# defamed
 Default, named and positional function arguments.
 
 ## Introduction
@@ -22,8 +22,9 @@ assert some_function(value = 20, sign = False) == -10
 assert some_function(True, 10, default = -10) == 0
 ```
 
-This macro generates a function macro that emulates the features described above.
+This macro generates a function macro that replicates the features above.
 ```rust
+// this function
 #[defame::defame]
 fn some_function(
     sign: bool,
@@ -38,4 +39,9 @@ fn some_function(
         0 - value + default
     }
 }
+
+// can then be used like:
+assert!(some_function!(true, 10) == 20);
+assert!(some_function!(value = 20, sign = false) == -10);
+assert!(some_function!(true, 10, default = -10) == 0);
 ```
