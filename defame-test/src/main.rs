@@ -36,6 +36,6 @@ macro_rules! with_receiver {
 }
 
 #[defame::defame]
-fn asd(first_item: i32, #[default(0)] second_item: i32) -> i32 {
+fn asd(first_item: i32, #[default] second_item: i32) -> i32 {
     0
 }

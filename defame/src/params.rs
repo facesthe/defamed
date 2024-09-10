@@ -1,11 +1,12 @@
 //! Function param stuff
 
 use core::panic;
-use std::clone;
+use std::{clone, fmt::Debug};
 
 use quote::ToTokens;
 use syn::{punctuated, spanned::Spanned};
 
+/// Parsed function parameters
 #[derive(Clone)]
 pub struct FunctionParams {
     receiver: FnReceiver,
@@ -45,6 +46,49 @@ pub enum ParamAttr {
     Default,
     // Use const expr for initialization
     Value(syn::Expr),
+}
+
+/// Permutation of positional and named parameters
+#[derive(Clone)]
+pub enum PermutedParam {
+    Positional(FunctionParam),
+    Named(FunctionParam),
+
+    // default parameter that is passed as an argument
+    DefaultUsed(FunctionParam),
+    // default parameter that is left blank
+    DefaultUnused(FunctionParam),
+}
+
+impl Debug for FunctionParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FunctionParam")
+            .field("pat", &self.pat.to_token_stream().to_string())
+            .field("ty", &self.ty.to_token_stream().to_string())
+            .field("default_value", &self.default_value)
+            .finish()
+    }
+}
+
+impl Debug for ParamAttr {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::None => write!(f, "None"),
+            Self::Default => write!(f, "Default"),
+            Self::Value(arg0) => write!(f, "Value({})", arg0.to_token_stream().to_string()),
+        }
+    }
+}
+
+impl Debug for PermutedParam {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Positional(arg0) => f.debug_tuple("Positional").field(arg0).finish(),
+            Self::Named(arg0) => f.debug_tuple("Named").field(arg0).finish(),
+            Self::DefaultUsed(arg0) => f.debug_tuple("DefaultUsed").field(arg0).finish(),
+            Self::DefaultUnused(arg0) => f.debug_tuple("DefaultUnused").field(arg0).finish(),
+        }
+    }
 }
 
 impl FunctionParams {
@@ -162,6 +206,189 @@ impl FunctionParams {
 
         res.into_iter().map(|x| x).collect()
     }
+
+    /// Checks if the token sequence adheres to the following:
+    /// - Default parameters must be at the end of the sequence
+    /// TODO: write a test for this
+    fn is_valid_sequence(&self) -> bool {
+        let mut iter = self.params.iter();
+
+        // advance to first default parameter
+        loop {
+            if let Some(param) = iter.next() {
+                match param.default_value {
+                    ParamAttr::None => (),
+                    _ => return false,
+                }
+            } else {
+                return true;
+            }
+        }
+
+        iter.all(|item| {
+            if let ParamAttr::None = item.default_value {
+                false
+            } else {
+                true
+            }
+        })
+    }
+
+    /// Generate all permutations of positional and named parameters.
+    ///
+    /// The following rules are followed:
+    /// - Positional parameters come first
+    /// - Remaining named parameters come after positional parameters, in all possible permutations
+    /// - Default used parameters are next, in all possible permutations
+    /// - Default unused parameters are last, without permutations
+    pub fn permute_params(&self) -> (Vec<Vec<PermutedParam>>) {
+        let required_params = self
+            .params
+            .iter()
+            .take_while(|p| match p.default_value {
+                ParamAttr::None => true,
+                _ => false,
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let default_params = self
+            .params
+            .iter()
+            .skip(required_params.len())
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let named_permute = (0..=required_params.len())
+            .into_iter()
+            .map(|i| {
+                let opp_idx = required_params.len() - i;
+                let (positional, named) = required_params.split_at(opp_idx);
+
+                let positional = positional
+                    .iter()
+                    .map(|p| PermutedParam::Positional(p.to_owned()))
+                    .collect::<Vec<_>>();
+                let permute_slice = Self::permute_named(named);
+
+                permute_slice
+                    .iter()
+                    .map(|named_seq| [positional.as_slice(), named_seq.as_slice()].concat())
+                    .collect::<Vec<_>>()
+                    .into_iter()
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+
+        let default_permute = Self::permute_default(&default_params);
+
+        match (named_permute.len(), default_permute.len()) {
+            (0, 0) => vec![vec![]],
+            (0, _) => default_permute,
+            (_, 0) => named_permute,
+            (_, _) => named_permute
+                .iter()
+                .map(|np| {
+                    default_permute
+                        .iter()
+                        .map(|dp| [np.as_slice(), dp.as_slice()].concat())
+                        .collect::<Vec<_>>()
+                })
+                .flatten()
+                .collect::<Vec<_>>(),
+        }
+    }
+
+    /// Perform permutation of all items in slice.
+    /// All items will be of the [PermutedParam::Named] variant
+    fn permute_named(named: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
+        if !named.iter().all(|n| match n.default_value {
+            ParamAttr::None => true,
+            _ => false,
+        }) {
+            panic!("All items in slice must not have default values");
+        }
+
+        let permutations = permute::permutations_of(named);
+
+        let res = permutations
+            .into_iter()
+            .map(|single_perm| {
+                single_perm
+                    .into_iter()
+                    .map(|item| PermutedParam::Named(item.to_owned()))
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        res
+    }
+
+    /// Perform permutations for default parameters.
+    ///
+    /// Each item in the slice must have a default value.
+    /// Additionally, default params can be used or unused. These are also permuted as well.
+    fn permute_default(defaults: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
+        if !defaults.iter().all(|n| match n.default_value {
+            ParamAttr::None => false,
+            _ => true,
+        }) {
+            panic!("All items in slice must have default values");
+        }
+
+        let base_permute = (0..(1 << defaults.len()))
+            .into_iter()
+            .map(|num| {
+                let seq = defaults
+                    .iter()
+                    .enumerate()
+                    .map(|(pos, item)| {
+                        // if bit set, it is used
+                        if (num >> pos) & 1 != 0 {
+                            PermutedParam::DefaultUsed(item.to_owned())
+                        } else {
+                            PermutedParam::DefaultUnused(item.to_owned())
+                        }
+                    })
+                    .collect::<Vec<_>>();
+
+                seq
+            })
+            .collect::<Vec<_>>();
+
+        // println!("{:#?}", base_permute);
+
+        let res = base_permute
+            .into_iter()
+            .map(|seq| {
+                let (used, unused) = Self::split_defaults(seq);
+
+                let mut used_permute = permute::permute(used);
+
+                for item in &mut used_permute {
+                    item.extend_from_slice(&unused);
+                }
+
+                used_permute.into_iter()
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+
+        res.into_iter().filter(|item| item.len() != 0).collect()
+
+        // res
+    }
+
+    /// Split the default parameters into default(used) and default(unused) parameters.
+    fn split_defaults(defaults: Vec<PermutedParam>) -> (Vec<PermutedParam>, Vec<PermutedParam>) {
+        let res: (Vec<_>, Vec<_>) = defaults.into_iter().partition(|def| match def {
+            PermutedParam::DefaultUsed(_) => true,
+            PermutedParam::DefaultUnused(_) => false,
+            _ => panic!("unexpected variant"),
+        });
+
+        res
+    }
 }
 
 impl FunctionParam {
@@ -186,24 +413,6 @@ impl FunctionParam {
                                 l_span,
                                 "expected at least 1 item in metalist",
                             ))?;
-
-                            // return Err(syn::Error::new(first_item.span(), format!("first item is : {}", first_item)));
-
-                            // match first_item {
-                            //     proc_macro2::TokenTree::Group(g) => todo!(),
-                            //     proc_macro2::TokenTree::Ident(id) => todo!(),
-                            //     proc_macro2::TokenTree::Punct(p) => todo!(),
-                            //     proc_macro2::TokenTree::Literal(l) => todo!(),
-                            // }
-
-                            // let g = if let proc_macro2::TokenTree::Group(_g) = first_item {
-                            //     _g
-                            // } else {
-                            //     return Err(syn::Error::new(
-                            //         first_item.span(),
-                            //         "expected tokentree group",
-                            //     ));
-                            // };
 
                             let e: syn::Expr = syn::parse2(first_item.to_token_stream())?;
                             default_value = ParamAttr::Value(e);
@@ -230,5 +439,122 @@ impl FunctionParam {
             ty: *ty.clone(),
             default_value,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use proc_macro::TokenStream;
+    use quote::quote;
+    use syn::{punctuated::Punctuated, token::Comma, FnArg, PatType};
+
+    #[test]
+    fn test_permute_named() {
+        let tokens = vec![
+            quote! { a: i32 },
+            quote! { b: u8 },
+            quote! { c: usize },
+            quote! { d: i64 },
+        ];
+
+        let punct: Punctuated<FnArg, Comma> = tokens
+            .into_iter()
+            .map(|t| syn::parse2::<FnArg>(t).unwrap())
+            .collect();
+
+        let params = FunctionParams::from_punctuated(punct).unwrap();
+
+        let permutations = FunctionParams::permute_named(&params.params);
+
+        println!("{:#?}", permutations);
+
+        // 0 0
+        // 0 1
+        // 1 0
+        // 1 1
+        assert_eq!(permutations.len(), 24);
+    }
+
+    #[test]
+    fn test_permute_defaults() {
+        let tokens = vec![quote! { #[default] a: i32 }, quote! { #[default(1)] c: u8 }];
+
+        let punct: Punctuated<FnArg, Comma> = tokens
+            .into_iter()
+            .map(|t| syn::parse2::<FnArg>(t).unwrap())
+            .collect();
+
+        let params = FunctionParams::from_punctuated(punct).unwrap();
+
+        let permutations = FunctionParams::permute_default(&params.params);
+
+        println!("{:#?}", permutations);
+
+        // 0 0
+        // 0 1
+        // 1 0
+        // 1 1
+        // 1 1 again because used defaults have to be permuted
+        assert_eq!(permutations.len(), 5);
+
+        // empty case
+        let permutations = FunctionParams::permute_default(&[]);
+        println!("{:?}", permutations);
+        assert_eq!(permutations.len(), 0);
+    }
+
+    /// Full permutation test with positional and named parameters
+    #[test]
+    fn test_permute_all_positional_named() {
+        let tokens = vec![
+            quote! { a: i32 },
+            quote! { b: u8 },
+            quote! { c: usize },
+            quote! { d: i64 },
+        ];
+
+        let punct: Punctuated<FnArg, Comma> = tokens
+            .into_iter()
+            .map(|t| syn::parse2::<FnArg>(t).unwrap())
+            .collect();
+
+        let params = FunctionParams::from_punctuated(punct).unwrap();
+
+        let permutations = params.permute_params();
+
+        println!("{:?}", permutations);
+
+        // 34
+        assert_eq!(permutations.len(), 34);
+    }
+
+    #[test]
+    fn test_all_positional_full() {
+        let tokens = vec![
+            // 34 permutations for positional and named
+            quote! { a: i32 },
+            quote! { b: u8 },
+            quote! { c: usize },
+            quote! { d: i64 },
+            // 5 permutations for default parameters
+            quote! { #[default] e: i32 },
+            quote! { #[default(1)] f: u8 },
+        ];
+
+        let punct: Punctuated<FnArg, Comma> = tokens
+            .into_iter()
+            .map(|t| syn::parse2::<FnArg>(t).unwrap())
+            .collect();
+
+        let params = FunctionParams::from_punctuated(punct).unwrap();
+
+        let permutations = params.permute_params();
+
+        println!("{:?}", permutations);
+
+        // 34
+        assert_eq!(permutations.len(), 34 * 5);
     }
 }
