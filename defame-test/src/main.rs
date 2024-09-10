@@ -35,6 +35,7 @@ mod tests {
 //     ($slf: expr, param_a = $param_a_val: expr) => {};
 // }
 
+/// Hwllo everynyan
 #[defame::defame]
 fn asd(first_item: i32, #[default] second_item: i32) -> i32 {
     0
