@@ -5,7 +5,7 @@ use proc_macro as pm;
 use proc_macro2 as pm2;
 use quote::ToTokens;
 
-use crate::params;
+use crate::{macro_gen, params};
 
 /// Output of a processing function
 pub struct ProcOutput {
@@ -56,11 +56,13 @@ pub fn item_fn(input: syn::ItemFn) -> ProcOutput {
         Err(e) => return e.to_compile_error().into(),
     };
 
+    let permuted = params.permute_params();
     let stripped_attrs = params.to_punctuated();
     let mut new_sig = sig.clone();
     new_sig.inputs = stripped_attrs;
 
-    // placeholder
+    let generated = macro_gen::generate_func_macro(new_sig.ident.clone(), permuted);
+
     let mod_fn = syn::ItemFn {
         attrs,
         vis,
@@ -69,5 +71,8 @@ pub fn item_fn(input: syn::ItemFn) -> ProcOutput {
     }
     .to_token_stream();
 
-    mod_fn.into()
+    ProcOutput {
+        modified: mod_fn,
+        generated,
+    }
 }

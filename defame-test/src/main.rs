@@ -27,15 +27,22 @@ mod tests {
     }
 }
 
-struct Item {}
+// struct Item {}
 
-impl Item {}
+// impl Item {}
 
-macro_rules! with_receiver {
-    ($slf: expr, param_a = $param_a_val: expr) => {};
-}
+// macro_rules! with_receiver {
+//     ($slf: expr, param_a = $param_a_val: expr) => {};
+// }
 
 #[defame::defame]
 fn asd(first_item: i32, #[default] second_item: i32) -> i32 {
     0
 }
+
+
+fn test() {
+    asd!(0, second_item = 0);
+}
+
+// asd!(first_item  = 0);

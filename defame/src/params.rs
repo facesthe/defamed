@@ -3,8 +3,10 @@
 use core::panic;
 use std::{clone, fmt::Debug};
 
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 use syn::{punctuated, spanned::Spanned};
+
+use crate::traits::ToMacroPattern;
 
 /// Parsed function parameters
 #[derive(Clone)]
@@ -49,7 +51,7 @@ pub enum ParamAttr {
 }
 
 /// Permutation of positional and named parameters
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum PermutedParam {
     Positional(FunctionParam),
     Named(FunctionParam),
@@ -88,6 +90,38 @@ impl Debug for PermutedParam {
             Self::DefaultUsed(arg0) => f.debug_tuple("DefaultUsed").field(arg0).finish(),
             Self::DefaultUnused(arg0) => f.debug_tuple("DefaultUnused").field(arg0).finish(),
         }
+    }
+}
+
+impl ToMacroPattern for PermutedParam {
+    fn to_macro_pattern(&self) -> Option<proc_macro2::TokenStream> {
+        match self {
+            PermutedParam::Positional(inner) => {
+                let pat = &inner.pat;
+                let val = syn::Ident::new(
+                    &format!("{}_val", pat.to_token_stream().to_string()),
+                    pat.span(),
+                );
+                Some(quote! {$#val: expr})
+            }
+            PermutedParam::Named(inner) | PermutedParam::DefaultUsed(inner) => {
+                let pat = &inner.pat;
+                let val = syn::Ident::new(
+                    &format!("{}_val", pat.to_token_stream().to_string()),
+                    pat.span(),
+                );
+                Some(quote! {#pat = $#val: expr})
+            }
+            PermutedParam::DefaultUnused(inner) => None,
+        }
+    }
+}
+
+// simple string matching
+impl PartialEq for FunctionParam {
+    fn eq(&self, other: &Self) -> bool {
+        self.pat.to_token_stream().to_string() == other.pat.to_token_stream().to_string()
+        // && self.ty == other.ty && self.default_value == other.default_value
     }
 }
 
@@ -283,7 +317,7 @@ impl FunctionParams {
         let default_permute = Self::permute_default(&default_params);
 
         match (named_permute.len(), default_permute.len()) {
-            (0, 0) => vec![vec![]],
+            (0, 0) => vec![],
             (0, _) => default_permute,
             (_, 0) => named_permute,
             (_, _) => named_permute
@@ -552,7 +586,7 @@ mod tests {
 
         let permutations = params.permute_params();
 
-        println!("{:?}", permutations);
+        println!("{:#?}", permutations[0]);
 
         // 34
         assert_eq!(permutations.len(), 34 * 5);

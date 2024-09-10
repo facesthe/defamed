@@ -4,6 +4,7 @@
 mod block_logic;
 mod params;
 mod macro_gen;
+mod traits;
 
 pub(crate) use proc_macro as pm;
 pub(crate) use proc_macro2 as pm2;
