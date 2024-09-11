@@ -1,9 +1,10 @@
+use defamed_test_lib::exported_struct_macros::{self, exported_struct__exported_method};
 use submodule::exported_function;
 
 mod submodule;
 
 fn main() {
-    unimplemented!("There is no main. Run tests instead");
+    unimplemented!("There is no main program. Run tests instead");
 }
 
 #[cfg(test)]
@@ -88,7 +89,13 @@ fn used() {
     log::info!("");
 }
 
-#[test]
-fn test() {}
+// #[test]
+fn test() {
+    let x = defamed_test_lib::ExportedStruct {};
+
+    x.exported_method();
+    exported_struct__exported_method!(x);
+    exported_struct_macros::exported_method!(x);
+}
 
 // asd!(first_item  = 0);

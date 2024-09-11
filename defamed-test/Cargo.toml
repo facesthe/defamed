@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 defamed = { path = "../defamed" }
+defamed-test-lib = { path = "../defamed-test-lib" }
 
 syn = { version = "2", features = ["full"] }
 quote = "1"
