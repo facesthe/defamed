@@ -10,9 +10,29 @@ impl ExportedStruct {
 }
 
 pub mod named_macros {
+    // use crate::defame_macros::some_public_defamed_function;
+
     #[named::named(defaults(input_b = false))]
     pub fn some_named_function(input_a: u8, input_b: Option<usize>) -> bool {
+        // let x = some_public_defamed_function!(crate: 0);
         false
+    }
+}
+
+/// This function is public, so it can be used by other crates as well as internally.
+///
+/// ```
+/// let add_default = defamed_test_lib::some_root_function!("base");
+/// let add_known = defamed_test_lib::some_root_function!("base", concat = Some(" concat"));
+///
+/// assert_eq!(add_default.as_str(), "base");
+/// assert_eq!(add_known.as_str(), "base concat");
+/// ```
+#[defamed::defamed(root)]
+pub fn some_root_function(base: &str, #[def] concat: Option<&str>) -> String {
+    match concat {
+        Some(c) => base.to_owned() + c,
+        None => base.to_owned(),
     }
 }
 
@@ -23,8 +43,15 @@ pub mod defame_macros {
     /// ASPDMASPDLSMPPSLMPSLMPS
     ///
     /// This is a document comment
-    #[defamed::defamed]
-    pub fn some_defamed_function(input_a: u8, input_b: Option<usize>) -> bool {
+    #[defamed::defamed(defame_macros)]
+    fn some_private_function(input_a: u8, input_b: Option<usize>) -> bool {
+        false
+    }
+
+    /// This is a public function
+    /// [crate::defame_macros]
+    #[defamed::defamed(defame_macros)]
+    pub fn some_public_function(input_a: u8, #[def] input_b: Option<usize>) -> bool {
         false
     }
 
@@ -50,18 +77,18 @@ pub mod defame_macros {
 
     fn testing() {
         // plain func
-        crate::defame_macros::some_defamed_function(1, None);
+        crate::defame_macros::some_private_function(1, None);
 
-        // crate::defame_macros::some_defamed_function!(1);
-        // crate::defame_macros::some_defamed_function!(input_a = 1);
-        // crate::defame_macros::some_defamed_function!(input_a = 1);
+        // crate::defame_macros::some_private_function!(1);
+        // crate::defame_macros::some_private_function!(input_a = 1);
+        // crate::defame_macros::some_private_function!(input_a = 1);
 
-        crate::defame_macros::some_defamed_function!(1, None);
-        crate::defame_macros::some_defamed_function!(input_a = 1, input_b = None);
-        crate::defame_macros::some_defamed_function!(input_b = None, input_a = 1);
+        some_private_function!(crate: 1, None);
+        // crate::defame_macros::some_private_function!(input_a = 1, input_b = None);
+        // crate::defame_macros::some_private_function!(input_b = None, input_a = 1);
 
-        some_defamed_function!(0, None);
-        // self::some_defamed_function!(input_b = Some(0), input_a = 1);
+        some_private_function!(crate: 0, None);
+        // self::some_private_function!(input_b = Some(0), input_a = 1);
     }
 }
 
@@ -93,7 +120,7 @@ macro_rules! substitute {
 fn something() {
     // defamed::resolve_crate_path!(
     //     "defamed-test-lib",
-    defame_macros::some_defamed_function(1, None);
+    // defame_macros::some_defamed_function(1, None);
     // );
 
     strip!("$asd: expr");

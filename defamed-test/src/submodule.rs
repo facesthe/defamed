@@ -1,4 +1,4 @@
-#[defamed::defamed]
+#[defamed::defamed(submodule)]
 pub fn exported_function() {}
 
 pub struct SomeStruct {}

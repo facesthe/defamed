@@ -1,4 +1,4 @@
-use submodule::exported_function;
+// use submodule::exported_function;
 
 mod submodule;
 
@@ -35,20 +35,20 @@ mod tests {
 // }
 
 /// Hwllo everynyan
-#[defamed::defamed]
+#[defamed::defamed(root)]
 pub fn asd(first_item: i32, #[def] second_item: i32) -> i32 {
     0
 }
 
-#[defamed::defamed]
-fn qwe(one: i32, two: usize, three: bool) {}
+// #[defamed::defamed]
+// fn qwe(one: i32, two: usize, three: bool) {}
 
 pub fn something() {
-    asd!(0, second_item = 20);
-    asd!(first_item = 1);
-    asd(0, 0);
+    // asd!(0, second_item = 20);
+    // asd!(first_item = 1);
+    // asd(0, 0);
 
-    exported_function!();
+    // exported_function!();
     // can then be used like:
     // let x = some_function!(true, 10);
     // let x = some_function!(sign = false, value = 100);
@@ -58,7 +58,7 @@ pub fn something() {
 
 mod inner {
     /// ASdalksdasl k
-    #[defamed::defamed]
+    #[defamed::defamed(root)]
     pub fn some_function(
         sign: bool,
         value: i32,

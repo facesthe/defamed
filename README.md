@@ -78,10 +78,16 @@ assert!(some_function!(true, 10, add = -10) == 0);
 
 - Current (temp) solution: define crate path path as a parameter in attribute
 
-- New solution: multi stage macros
-    - first proc-macro passes new arguments (module path) to second macro
-        - first macro mangles the macro name so that exported function macros with the same name (diff module) do not share the same symbol
-    - second proc-macro generates actual function macro with all permutations
+- New (iffy) solution: multi stage macros
+    - this solution requires that this library is also included by the user in their crate (double import)
+    - first proc-macro generates actual function macro with all permutations
     and exports function macro under module scope
-    - when called, function macro resolves to another proc-macro to eval crate root path (crate:: or otherwise)
+    - when called, function macro resolves to another proc-macro to eval crate root path (crate:: or otherwise).
+    this proc-macro is provided by this crate, hence the need to double import
     - final function substituted in code
+
+- New (less iffy solution): more macro permutations!
+    - every macro permutation now has 2 variants: a crate-wide invocation and a public invocation.
+    - any macro not called in the same scope as it was defined will need the fully qualified path of it's invoked inner function
+    - a `crate:` prefix indicates that the macro substitutes code for invocation inside it's own crate
+    - no prefix indicates that code should be substituted for users of that crate

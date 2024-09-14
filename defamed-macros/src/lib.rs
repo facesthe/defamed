@@ -1,5 +1,4 @@
 //!
-#![allow(unused)]
 
 mod block_logic;
 mod macro_gen;
@@ -10,6 +9,9 @@ use proc_macro as pm;
 use proc_macro2 as pm2;
 use quote::ToTokens;
 use syn::{parse_macro_input, spanned::Spanned, ExprGroup};
+
+/// Identifier for public macros defined in the root module
+pub(crate) const ROOT_VISIBILITY_IDENT: &str = "root";
 
 /// "Helper" attribute for annotating function parameters
 pub(crate) const DEFAULT_HELPER_ATTR: &str = "def";
@@ -25,16 +27,13 @@ pub fn defamed(attrs: pm::TokenStream, input: pm::TokenStream) -> pm::TokenStrea
             // asd
             let ex: syn::Expr = syn::parse_macro_input!(attrs);
 
-            if let syn::Expr::Group(syn::ExprGroup { expr, .. }) = &ex {
-                if let syn::Expr::Path(p) = expr.as_ref() {
-                    Some(p.clone())
-                } else {
-                    return syn::Error::new(ex.span(), "Expected path expression")
-                        .to_compile_error()
-                        .into();
-                }
+            if let syn::Expr::Path(syn::ExprPath { attrs, qself, path }) = &ex {
+                // if let syn::Expr::Path(p) = expr.as_ref() {
+                Some(path.clone())
+
+                // } else {
             } else {
-                return syn::Error::new(ex.span(), "Expected expression inside parantheses")
+                return syn::Error::new(ex.span(), "Expected path expression")
                     .to_compile_error()
                     .into();
             }

@@ -45,11 +45,7 @@ impl From<ProcOutput> for pm::TokenStream {
 
 /// Process a standalone function.
 /// The crate path of the funciton is passed as an optional parameter.
-pub fn item_fn(
-    input: syn::ItemFn,
-    package_name: &str,
-    fn_path: Option<syn::ExprPath>,
-) -> ProcOutput {
+pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path>) -> ProcOutput {
     let syn::ItemFn {
         attrs,
         vis,
@@ -69,8 +65,24 @@ pub fn item_fn(
                 .into();
             }
         }
+        (syn::Visibility::Public(_), None) => {
+            return syn::Error::new(
+                sig.ident.span(),
+                "Attribute requires a path to the function for public functions",
+            )
+            .to_compile_error()
+            .into();
+        }
         _ => (),
     }
+
+    let fn_path_checked = fn_path.and_then(|p| {
+        if p.is_ident(crate::ROOT_VISIBILITY_IDENT) {
+            None
+        } else {
+            Some(p)
+        }
+    });
 
     let params = match params::FunctionParams::from_punctuated(sig.inputs.clone()) {
         Ok(p) => p,
@@ -100,7 +112,8 @@ pub fn item_fn(
     let generated = macro_gen::generate_func_macro(
         vis.clone(),
         doc_attrs,
-        None,
+        package_name,
+        fn_path_checked,
         new_sig.ident.clone(),
         permuted,
     );

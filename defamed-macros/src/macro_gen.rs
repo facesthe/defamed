@@ -18,7 +18,8 @@ use crate::{params::PermutedParam, traits::ToMacroPattern};
 pub fn generate_func_macro(
     vis: Visibility,
     doc_attrs: Vec<syn::Attribute>,
-    func_path: Option<pm2::Group>,
+    package_name: &str,
+    func_path: Option<syn::Path>,
     func_ident: syn::Ident,
     params: Vec<Vec<PermutedParam>>,
 ) -> pm2::TokenStream {
@@ -28,9 +29,12 @@ pub fn generate_func_macro(
         .cloned()
         .expect("at least one match pattern expected");
 
-    let func_path = func_path
-        .and_then(|g| Some(g.to_token_stream()))
+    let func_path_mid = func_path
+        .clone()
+        .and_then(|g| Some(quote! {#g ::}))
         .unwrap_or(quote! {});
+
+    let package_ident = syn::Ident::new(&package_name.replace("-", "_"), Span::call_site());
 
     let mut macro_matches: Punctuated<pm2::TokenStream, Semi> = params
         .into_iter()
@@ -38,24 +42,32 @@ pub fn generate_func_macro(
             let macro_signature = create_macro_signature(&p);
             let func_signature = create_func_call_signature(first_ref.as_slice(), &p);
 
-            quote! {
-                (#macro_signature) => {
-                    // let x = module_path!();
-                    // let y = x.split("::").collect::<Vec<_>>();
-                    // println !("{:?}", y);
-                    // stringify!(module_path!());
-                    // println!("{}", $module_path!())
-                    #func_ident(#func_signature)
-                }
-            }
+            [
+                quote! {
+                    (crate: #macro_signature) => {
+                        // let x = module_path!();
+                        // let y = x.split("::").collect::<Vec<_>>();
+                        // println !("{:?}", y);
+                        // stringify!(module_path!());
+                        // println!("{}", $module_path!())
+                        crate :: #func_path_mid #func_ident(#func_signature)
+                    }
+                },
+                quote! {
+                    (#macro_signature) => {
+                        // let x = module_path!();
+                        // let y = x.split("::").collect::<Vec<_>>();
+                        // println !("{:?}", y);
+                        // stringify!(module_path!());
+                        // println!("{}", $module_path!())
+                        #package_ident :: #func_path_mid #func_ident(#func_signature)
+                    }
+                },
+            ]
+            .into_iter()
         })
+        .flatten()
         .collect();
-
-    macro_matches.push(quote! {
-        ($other: tt) => {
-            compile_error!("Invalid parameters")
-        }
-    });
 
     let macro_mod = syn::Ident::new(
         &format!("{}_macros", func_ident.to_token_stream().to_string()),
@@ -68,25 +80,40 @@ pub fn generate_func_macro(
     };
 
     let func_dunder_ident = syn::Ident::new(
-        &format!("__{}__", func_ident.to_token_stream().to_string()),
+        &format!(
+            "__{}{}__",
+            match &func_path {
+                Some(p) => format!("{}_", p.to_token_stream()),
+                None => "".to_string(),
+            },
+            func_ident.to_token_stream().to_string()
+        ),
         Span::call_site(),
     );
 
     let doc_attr_tokens: pm2::TokenStream =
         doc_attrs.into_iter().map(|a| a.to_token_stream()).collect();
 
+    let full_func_path = match func_path {
+        Some(p) => quote! {crate::#p::#func_ident},
+        None => quote! {crate::#func_ident},
+    };
+
     quote! {
         // #vis mod #macro_mod {
 
             #[doc(hidden)]
+            #[allow(unused_macros)]
             #macro_def_attr
             macro_rules! #func_dunder_ident (
                 #macro_matches
             );
 
             #[doc(inline)]
-            #doc_attr_tokens
+            // #[allow(unused_macros)]
+            #[doc = concat!("Wrapper for: [`", stringify!(#func_ident), "`]")]
             #vis use #func_dunder_ident as #func_ident;
+
         // }
 
         // #vis use #macro_mod::*;
