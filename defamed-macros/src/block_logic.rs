@@ -3,7 +3,8 @@
 
 use proc_macro as pm;
 use proc_macro2 as pm2;
-use quote::ToTokens;
+use quote::{quote, ToTokens};
+use syn::spanned::Spanned;
 
 use crate::{macro_gen, params};
 
@@ -43,7 +44,12 @@ impl From<ProcOutput> for pm::TokenStream {
 }
 
 /// Process a standalone function.
-pub fn item_fn(input: syn::ItemFn) -> ProcOutput {
+/// The crate path of the funciton is passed as an optional parameter.
+pub fn item_fn(
+    input: syn::ItemFn,
+    package_name: &str,
+    fn_path: Option<syn::ExprPath>,
+) -> ProcOutput {
     let syn::ItemFn {
         attrs,
         vis,
@@ -51,14 +57,29 @@ pub fn item_fn(input: syn::ItemFn) -> ProcOutput {
         block,
     } = input;
 
+    // check visibility vs provided path
+    match (&vis, fn_path.as_ref()) {
+        (syn::Visibility::Restricted(syn::VisRestricted { path, .. }), None) => {
+            if !path.is_ident("self") {
+                return syn::Error::new(
+                    sig.ident.span(),
+                    "Attribute requires a path to the function for public functions",
+                )
+                .to_compile_error()
+                .into();
+            }
+        }
+        _ => (),
+    }
+
     let params = match params::FunctionParams::from_punctuated(sig.inputs.clone()) {
         Ok(p) => p,
         Err(e) => return e.to_compile_error().into(),
     };
 
-    if !params.is_valid_sequence() {
+    if let Some(invalid) = params.first_invalid_param() {
         return syn::Error::new(
-            sig.ident.span(),
+            invalid.inner_span(),
             "Default parameters must be placed after all positional parameters",
         )
         .to_compile_error()
@@ -70,7 +91,19 @@ pub fn item_fn(input: syn::ItemFn) -> ProcOutput {
     let mut new_sig = sig.clone();
     new_sig.inputs = stripped_attrs;
 
-    let generated = macro_gen::generate_func_macro(vis.clone(), new_sig.ident.clone(), permuted);
+    let doc_attrs = attrs
+        .iter()
+        .cloned()
+        .filter(|a| a.path().is_ident("doc"))
+        .collect::<Vec<_>>();
+
+    let generated = macro_gen::generate_func_macro(
+        vis.clone(),
+        doc_attrs,
+        None,
+        new_sig.ident.clone(),
+        permuted,
+    );
 
     let mod_fn = syn::ItemFn {
         attrs,
@@ -83,5 +116,39 @@ pub fn item_fn(input: syn::ItemFn) -> ProcOutput {
     ProcOutput {
         modified: mod_fn,
         generated,
+    }
+}
+
+/// Processes all functions inside an `impl` block
+pub fn item_impl(input: syn::ItemImpl) -> ProcOutput {
+    todo!()
+}
+
+#[cfg(test)]
+mod tests {
+    use quote::quote;
+
+    #[test]
+    fn test_match_impl_block() {
+        let tokens = quote! {
+            impl SomeStruct {
+                pub fn new() -> Self {
+                    SomeStruct {}
+                }
+            }
+        };
+
+        let res: syn::ItemImpl = syn::parse2(tokens).unwrap();
+    }
+
+    #[test]
+    fn test_match_mod_block() {
+        let tokens = quote! {
+            mod some_module {
+                struct X{}
+            }
+        };
+
+        let res: syn::ItemMod = syn::parse2(tokens).unwrap();
     }
 }

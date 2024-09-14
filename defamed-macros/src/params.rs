@@ -21,6 +21,7 @@ pub struct FunctionParam {
     /// Param name
     pat: syn::Pat,
     ty: syn::Type,
+    attrs: Vec<syn::Attribute>,
     /// A const that can be used as a default value
     default_value: ParamAttr,
 }
@@ -237,7 +238,7 @@ impl FunctionParams {
         Ok(s)
     }
 
-    /// Converts `Self` back to a punctuated sequence of `syn::FnArg`, with all inner attributes stripped.
+    /// Converts `Self` back to a punctuated sequence of `syn::FnArg`, with all matching inner attributes stripped.
     pub fn to_punctuated(self) -> syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma> {
         let mut res = Vec::<syn::FnArg>::new();
 
@@ -273,9 +274,14 @@ impl FunctionParams {
         for param in self.params {
             let pat = param.pat;
             let ty = param.ty;
+            let s_attrs = param
+                .attrs
+                .into_iter()
+                .filter(|a| !a.path().is_ident(crate::DEFAULT_HELPER_ATTR))
+                .collect::<Vec<_>>();
 
             let arg = syn::FnArg::Typed(syn::PatType {
-                attrs: Vec::new(),
+                attrs: s_attrs,
                 pat: Box::new(pat),
                 colon_token: Default::default(),
                 ty: Box::new(ty),
@@ -290,28 +296,33 @@ impl FunctionParams {
     /// Checks if the token sequence adheres to the following:
     /// - Default parameters must be at the end of the sequence
     /// TODO: write a test for this
-    pub fn is_valid_sequence(&self) -> bool {
+    pub fn first_invalid_param(&self) -> Option<&FunctionParam> {
         let mut iter = self.params.iter();
 
         // advance to first default parameter
-        loop {
+        let first_default = loop {
             if let Some(param) = iter.next() {
                 match param.default_value {
                     ParamAttr::None => (),
-                    _ => break,
+                    _ => break param,
                 }
             } else {
-                return true;
+                return None;
             }
-        }
+        };
 
-        iter.all(|item| {
+        match iter.all(|item| {
             if let ParamAttr::None = item.default_value {
                 false
             } else {
                 true
             }
-        })
+        }) {
+            true => None,
+            false => Some(first_default),
+        }
+
+        // todo!()
     }
 
     /// Generate all permutations of positional and named parameters.
@@ -481,7 +492,7 @@ impl FunctionParam {
         // look for default attr
         if punct.attrs.len() > 0 {
             for attr in &punct.attrs {
-                if attr.path().is_ident(crate::DEFAULT_ATTR) {
+                if attr.path().is_ident(crate::DEFAULT_HELPER_ATTR) {
                     let meta = attr.meta.clone();
 
                     match meta {
@@ -501,8 +512,8 @@ impl FunctionParam {
                             let e = syn::Error::new(
                                     nv.span(),
                                     format!("name-values are not supported. Use #[{}] or #[{}(CONST_VALUE)] instead.",
-                                        crate::DEFAULT_ATTR,
-                                        crate::DEFAULT_ATTR
+                                        crate::DEFAULT_HELPER_ATTR,
+                                        crate::DEFAULT_HELPER_ATTR
                                     ),
                                 );
                             return Err(e);
@@ -517,8 +528,13 @@ impl FunctionParam {
         Ok(Self {
             pat: *pat.clone(),
             ty: *ty.clone(),
+            attrs: punct.attrs,
             default_value,
         })
+    }
+
+    pub fn inner_span(&self) -> proc_macro2::Span {
+        self.pat.span()
     }
 }
 

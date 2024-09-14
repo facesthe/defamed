@@ -1,0 +1,18 @@
+[package]
+name = "defamed-macros"
+version = "0.1.0"
+edition = "2021"
+description = "Procedural macros for defamed"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+proc-macro-warning = "1"
+eager = "0.1"
+
+permute = "0.2"
+paste = "1"

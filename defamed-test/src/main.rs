@@ -1,4 +1,3 @@
-use defamed_test_lib::exported_struct_macros::{self, exported_struct__exported_method};
 use submodule::exported_function;
 
 mod submodule;
@@ -37,7 +36,7 @@ mod tests {
 
 /// Hwllo everynyan
 #[defamed::defamed]
-pub fn asd(first_item: i32, #[default] second_item: i32) -> i32 {
+pub fn asd(first_item: i32, #[def] second_item: i32) -> i32 {
     0
 }
 
@@ -64,8 +63,8 @@ mod inner {
         sign: bool,
         value: i32,
         // use #[default] for types that implement Default::default()
-        #[default] add: i32,
-        #[default(1)] div: i32,
+        #[def] add: i32,
+        #[def(0)] div: i32,
     ) -> i32 {
         (if sign { value + add } else { 0 - value + add }) / div
     }
@@ -94,8 +93,9 @@ fn test() {
     let x = defamed_test_lib::ExportedStruct {};
 
     x.exported_method();
-    exported_struct__exported_method!(x);
-    exported_struct_macros::exported_method!(x);
+
+    // defamed_test_lib::
+    // defamed_test_lib::exported_struct_macros::exported_method!(x);
 }
 
 // asd!(first_item  = 0);

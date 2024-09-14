@@ -1,5 +1,5 @@
 [workspace]
-members = ["defamed", "defamed-test", "defamed-test-lib"]
+members = ["defamed", "defamed-macros", "defamed-test", "defamed-test-lib"]
 resolver = "2"
 
 [workspace.package]

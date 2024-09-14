@@ -14,6 +14,5 @@ use proc_macro2 as pm2;
 pub trait ToMacroPattern {
     fn to_macro_pattern(&self) -> Option<pm2::TokenStream>;
 
-
     fn to_func_call_pattern(&self) -> pm2::TokenStream;
 }

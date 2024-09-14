@@ -6,3 +6,6 @@ edition.workspace = true
 [dependencies]
 defamed = { path = "../defamed" }
 named = "0.1"
+scoped = "0.1"
+paste = "1.0"
+eager = "0.1"

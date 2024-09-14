@@ -12,15 +12,26 @@ impl SomeStruct {
 }
 
 mod some_struct_macros {
+
     #[macro_export]
-    macro_rules! some_method {
+    #[doc(hidden)]
+    macro_rules! __some_method {
         ($self: expr) => {};
     }
 
-    pub(crate) use some_method;
+    #[doc(inline)]
+    pub use __some_method as some_method;
 }
 
-use some_struct_macros::*;
-some_method!(SomeStruct {});
+// some_method!(SomeStruct {});
+// some_struct_macros
 
+// defamed_test_lib::macros::fiz!();
+// defamed_test_lib::macros::fiz!();
 
+fn submodule_fn() {
+    // defamed_test_lib::defame_macros::some_defamed_function!(1, None);
+}
+// defamed_test_lib::defame_macros::some_defamed_function!(1, 2);
+// defamed_test_lib::defame_macros::some_defamed_function!(1);
+// defamed_test_lib::named_macros::some_named_function!(9);
