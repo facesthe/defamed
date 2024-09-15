@@ -1,10 +1,8 @@
 //! Various methods for manipulating a particular block of code.
-//!
 
 use proc_macro as pm;
 use proc_macro2 as pm2;
-use quote::{quote, ToTokens};
-use syn::spanned::Spanned;
+use quote::ToTokens;
 
 use crate::{macro_gen, params};
 
@@ -103,15 +101,15 @@ pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path
     let mut new_sig = sig.clone();
     new_sig.inputs = stripped_attrs;
 
-    let doc_attrs = attrs
-        .iter()
-        .cloned()
-        .filter(|a| a.path().is_ident("doc"))
-        .collect::<Vec<_>>();
+    // let doc_attrs = attrs
+    //     .iter()
+    //     .cloned()
+    //     .filter(|a| a.path().is_ident("doc"))
+    //     .collect::<Vec<_>>();
 
     let generated = macro_gen::generate_func_macro(
         vis.clone(),
-        doc_attrs,
+        // doc_attrs,
         package_name,
         fn_path_checked,
         new_sig.ident.clone(),
@@ -133,7 +131,8 @@ pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path
 }
 
 /// Processes all functions inside an `impl` block
-pub fn item_impl(input: syn::ItemImpl) -> ProcOutput {
+#[allow(dead_code)]
+pub fn item_impl(_input: syn::ItemImpl) -> ProcOutput {
     todo!()
 }
 
@@ -151,7 +150,7 @@ mod tests {
             }
         };
 
-        let res: syn::ItemImpl = syn::parse2(tokens).unwrap();
+        let _: syn::ItemImpl = syn::parse2(tokens).unwrap();
     }
 
     #[test]
@@ -162,6 +161,6 @@ mod tests {
             }
         };
 
-        let res: syn::ItemMod = syn::parse2(tokens).unwrap();
+        let _: syn::ItemMod = syn::parse2(tokens).unwrap();
     }
 }

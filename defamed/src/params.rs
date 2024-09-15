@@ -131,14 +131,11 @@ impl ToMacroPattern for PermutedParam {
                 quote! {$#val}
             }
 
-            PermutedParam::DefaultUnused(inner) => {
-                // asd
-                match &inner.default_value {
-                    ParamAttr::None => unimplemented!("invalid inner value"),
-                    ParamAttr::Default => quote! {std::default::Default::default()},
-                    ParamAttr::Value(v) => quote! {#v},
-                }
-            }
+            PermutedParam::DefaultUnused(inner) => match &inner.default_value {
+                ParamAttr::None => unimplemented!("invalid inner value"),
+                ParamAttr::Default => quote! {core::default::Default::default()},
+                ParamAttr::Value(v) => quote! {#v},
+            },
         }
     }
 }
@@ -321,8 +318,6 @@ impl FunctionParams {
             true => None,
             false => Some(first_default),
         }
-
-        // todo!()
     }
 
     /// Generate all permutations of positional and named parameters.
@@ -332,6 +327,9 @@ impl FunctionParams {
     /// - Remaining named parameters come after positional parameters, in all possible permutations
     /// - Default used parameters are next, in all possible permutations
     /// - Default unused parameters are last, without permutations
+    ///
+    /// TODO: permute default used parameters as positional parameters,
+    /// only when all positional parameters are used
     pub fn permute_params(&self) -> Vec<Vec<PermutedParam>> {
         let required_params = self
             .params
@@ -372,8 +370,18 @@ impl FunctionParams {
             .collect::<Vec<_>>();
 
         let default_permute = Self::permute_default(&default_params);
+        let default_positional_permute = Self::permute_positional_default(&default_params);
 
-        match (named_permute.len(), default_permute.len()) {
+        // last element in named permutation matrix contains all positional parameters
+        let all_positional = match named_permute.last() {
+            Some(base) => default_positional_permute
+                .into_iter()
+                .map(|seq| [base.as_slice(), seq.as_slice()].concat())
+                .collect(),
+            None => default_positional_permute,
+        };
+
+        let inter = match (named_permute.len(), default_permute.len()) {
             (0, 0) => vec![],
             (0, _) => default_permute,
             (_, 0) => named_permute,
@@ -387,6 +395,13 @@ impl FunctionParams {
                 })
                 .flatten()
                 .collect::<Vec<_>>(),
+        };
+
+        match (inter.len(), all_positional.len()) {
+            (0, 0) => vec![],
+            (0, _) => all_positional,
+            (_, 0) => inter,
+            (_, _) => [inter, all_positional].concat(),
         }
     }
 
@@ -415,7 +430,7 @@ impl FunctionParams {
         res
     }
 
-    /// Perform permutations for default parameters.
+    /// Perform permutations for default parameters. All permuted values are named.
     ///
     /// Each item in the slice must have a default value.
     /// Additionally, default params can be used or unused. These are also permuted as well.
@@ -468,6 +483,40 @@ impl FunctionParams {
         res.into_iter().filter(|item| item.len() != 0).collect()
 
         // res
+    }
+
+    /// Permute positional parameters for default values.
+    ///
+    /// This extends the special case where all preceding (non default) parameters
+    /// are used as positional parameters.
+    fn permute_positional_default(defaults: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
+        let res = (1..=defaults.len())
+            .into_iter()
+            .map(|idx| {
+                let (positional, named) = defaults.split_at(idx);
+                let pos_params = positional
+                    .iter()
+                    .map(|p| PermutedParam::Positional(p.to_owned()))
+                    .collect::<Vec<_>>();
+
+                let inter = match named.len() {
+                    0 => vec![pos_params],
+                    _ => {
+                        let named_permute = Self::permute_default(named);
+
+                        named_permute
+                            .into_iter()
+                            .map(move |named_seq| [pos_params.clone(), named_seq].concat())
+                            .collect::<Vec<_>>()
+                    }
+                };
+
+                inter.into_iter()
+            })
+            .flatten()
+            .collect::<Vec<_>>();
+
+        res
     }
 
     /// Split the default parameters into default(used) and default(unused) parameters.
@@ -606,6 +655,29 @@ mod tests {
         assert_eq!(permutations.len(), 0);
     }
 
+    #[test]
+    fn test_permute_positional_defaults() {
+        let default_ident =
+            syn::Ident::new(crate::DEFAULT_HELPER_ATTR, proc_macro2::Span::call_site());
+
+        let tokens = vec![
+            quote! { #[#default_ident] a: i32 },
+            quote! { #[#default_ident(1)] b: u8 },
+            quote! { #[#default_ident] c: usize },
+        ];
+
+        let punct: Punctuated<FnArg, Comma> = tokens
+            .into_iter()
+            .map(|t| syn::parse2::<FnArg>(t).unwrap())
+            .collect();
+
+        let params = FunctionParams::from_punctuated(punct).unwrap();
+        let permutations = FunctionParams::permute_positional_default(&params.params);
+
+        println!("{:#?}", permutations);
+        assert_eq!(permutations.len(), 8);
+    }
+
     /// Full permutation test with positional and named parameters
     #[test]
     fn test_permute_all_positional_named() {
@@ -643,6 +715,7 @@ mod tests {
             quote! { c: usize },
             quote! { d: i64 },
             // 5 permutations for default parameters
+            // and 3 additional permutations for positional default parameters (not permuted)
             quote! { #[#default_token] e: i32 },
             quote! { #[#default_token(1)] f: u8 },
         ];
@@ -658,7 +731,6 @@ mod tests {
 
         println!("{:#?}", permutations[0]);
 
-        // 34
-        assert_eq!(permutations.len(), 34 * 5);
+        assert_eq!(permutations.len(), 34 * 5 + 3);
     }
 }

@@ -17,7 +17,6 @@ use crate::{params::PermutedParam, traits::ToMacroPattern};
 /// while reorderng and substituting parameters as needed.
 pub fn generate_func_macro(
     vis: Visibility,
-    doc_attrs: Vec<syn::Attribute>,
     package_name: &str,
     func_path: Option<syn::Path>,
     func_ident: syn::Ident,
@@ -42,15 +41,9 @@ pub fn generate_func_macro(
             let macro_signature = create_macro_signature(&p);
             let func_signature = create_func_call_signature(first_ref.as_slice(), &p);
 
-            if let Visibility::Inherited = &vis {
-                vec![quote! {
-                    (#macro_signature) => {
-                        #func_ident(#func_signature)
-                    }
-                }]
-                .into_iter()
-            } else {
-                vec![
+            match &vis {
+                // pub macros require differentiation between internal and external calls
+                Visibility::Public(_) => vec![
                     quote! {
                         (crate: #macro_signature) => {
                             crate :: #func_path_mid #func_ident(#func_signature)
@@ -62,7 +55,19 @@ pub fn generate_func_macro(
                         }
                     },
                 ]
-                .into_iter()
+                .into_iter(),
+                Visibility::Restricted(_) => vec![quote! {
+                    (#macro_signature) => {
+                        crate :: #func_path_mid #func_ident(#func_signature)
+                    }
+                }]
+                .into_iter(),
+                Visibility::Inherited => vec![quote! {
+                    (#macro_signature) => {
+                        #func_ident(#func_signature)
+                    }
+                }]
+                .into_iter(),
             }
         })
         .flatten()
@@ -90,13 +95,10 @@ pub fn generate_func_macro(
         Span::call_site(),
     );
 
-    let doc_attr_tokens: pm2::TokenStream =
-        doc_attrs.into_iter().map(|a| a.to_token_stream()).collect();
-
-    let full_func_path = match func_path {
-        Some(p) => quote! {crate::#p::#func_ident},
-        None => quote! {crate::#func_ident},
-    };
+    // let full_func_path = match func_path {
+    //     Some(p) => quote! {crate::#p::#func_ident},
+    //     None => quote! {crate::#func_ident},
+    // };
 
     quote! {
         // #vis mod #macro_mod {
@@ -110,11 +112,10 @@ pub fn generate_func_macro(
 
             #[doc(inline)]
             // #[allow(unused_macros)]
-            #[doc = concat!("Wrapper for: [`", stringify!(#func_ident), "`]")]
+            #[doc = concat!("[`defamed`] wrapper for [`", stringify!(#func_ident), "()`]")]
             #vis use #func_dunder_ident as #func_ident;
 
         // }
-
         // #vis use #macro_mod::*;
         // #vis use #func_ident!;
     }

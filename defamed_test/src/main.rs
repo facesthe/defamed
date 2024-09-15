@@ -7,6 +7,23 @@ fn main() {
     unimplemented!("There is no main program. Run tests instead");
 }
 
+#[defamed::defamed]
+fn top_level_crate_function(#[def] a: Option<usize>) -> Option<bool> {
+    a.and_then(|us| Some(us > 0))
+}
+
+mod inner {
+    mod inner_b {
+        use crate::top_level_crate_function;
+
+        fn asd() {
+            defamed_test::some_root_function!("asd");
+            defamed_test::defame_macros::some_public_function!(1);
+            top_level_crate_function!();
+        }
+    }
+}
+
 // // struct Item {}
 
 // // impl Item {}

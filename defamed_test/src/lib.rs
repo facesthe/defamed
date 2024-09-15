@@ -1,6 +1,11 @@
 //! Test lib for defamed
 //!
 
+/// Doc comments
+/// links to: [some_root_function()]
+#[doc(inline)]
+pub use priv_mod::some_private_function_ as some_private_function;
+
 /// This function is public, so it can be used by other crates as well as internally.
 ///
 /// ```
@@ -10,11 +15,70 @@
 /// assert_eq!(add_default.as_str(), "base");
 /// assert_eq!(add_known.as_str(), "base concat");
 /// ```
-#[defamed::defamed(root)]
+#[defamed::defamed(crate)]
 pub fn some_root_function(base: &str, #[def] concat: Option<&str>) -> String {
+    let _ = complex_function!(1, 2);
+
     match concat {
         Some(c) => base.to_owned() + c,
         None => base.to_owned(),
+    }
+}
+
+#[defamed::defamed]
+fn complex_function(
+    base: i32,
+    other: i32,
+    // literals can be used as default values
+    #[def(true)] add: bool,
+    // if no default value is provided, the type must implement Default
+    #[def] divide_result_by: Option<i32>,
+) -> i32 {
+    let intermediate = if add { base + other } else { base - other };
+
+    match divide_result_by {
+        Some(div) => intermediate / div,
+        None => intermediate,
+    }
+}
+
+mod priv_mod {
+    #[doc(hidden)]
+    pub fn some_private_function_() {}
+}
+
+#[cfg(test)]
+mod tests {
+    use super::complex_function;
+
+    #[test]
+    fn test_asd() {
+        let x = complex_function!(1, 2);
+
+        assert_eq!(complex_function!(10, 5), 15);
+        assert_eq!(complex_function!(10, 5, add = false), 5);
+        assert_eq!(complex_function!(10, 20, divide_result_by = Some(2)), 15);
+        // all arguments can be named
+        assert_eq!(
+            complex_function!(
+                base = 20,
+                other = 10,
+                add = false,
+                divide_result_by = Some(2)
+            ),
+            5
+        );
+        // positional arguments can be named in any order, but must be provided before default arguments
+        assert_eq!(
+            complex_function!(
+                other = 10,
+                base = 20,
+                divide_result_by = Some(2),
+                add = false
+            ),
+            5
+        );
+        assert_eq!(complex_function!(20, 10, false, Some(2)), 5);
     }
 }
 
