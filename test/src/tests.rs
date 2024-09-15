@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 #[defamed::defamed(submodule)]
 pub fn exported_function() {}
 

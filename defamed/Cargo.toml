@@ -2,6 +2,14 @@
 name = "defamed"
 version = "0.1.0"
 edition = "2021"
+description = "Default, positional and named parameters"
+
+[lib]
+proc-macro = true
 
 [dependencies]
-defamed-macros = {path = "../defamed-macros"}
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+
+permute = "0.2"

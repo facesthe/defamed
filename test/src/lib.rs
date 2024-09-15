@@ -1,24 +1,6 @@
 //! Test lib for defamed
 //!
 
-use eager::eager_macro_rules;
-
-pub struct ExportedStruct {}
-
-impl ExportedStruct {
-    pub fn exported_method(&self) {}
-}
-
-pub mod named_macros {
-    // use crate::defame_macros::some_public_defamed_function;
-
-    #[named::named(defaults(input_b = false))]
-    pub fn some_named_function(input_a: u8, input_b: Option<usize>) -> bool {
-        // let x = some_public_defamed_function!(crate: 0);
-        false
-    }
-}
-
 /// This function is public, so it can be used by other crates as well as internally.
 ///
 /// ```
@@ -175,16 +157,6 @@ fn something() {
 // #[allow(unused_imports)]
 // pub use exported_struct_macros::*;
 // fn ass() {}
-
-///a asdasd
-#[named::named(defaults(b = false))]
-fn named_fn(a: bool, b: bool) -> bool {
-    false
-}
-
-fn use_named_fn() {
-    named_fn!(a = false, b = true);
-}
 
 // #[macro_export]
 // macro_rules! scoped {(
