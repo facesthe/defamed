@@ -4,8 +4,8 @@
 /// This function is public, so it can be used by other crates as well as internally.
 ///
 /// ```
-/// let add_default = defamed_test_lib::some_root_function!("base");
-/// let add_known = defamed_test_lib::some_root_function!("base", concat = Some(" concat"));
+/// let add_default = defamed_test::some_root_function!("base");
+/// let add_known = defamed_test::some_root_function!("base", concat = Some(" concat"));
 ///
 /// assert_eq!(add_default.as_str(), "base");
 /// assert_eq!(add_known.as_str(), "base concat");
@@ -59,17 +59,17 @@ pub mod defame_macros {
 
     fn testing() {
         // plain func
-        crate::defame_macros::some_private_function(1, None);
+        some_private_function(1, None);
 
         // crate::defame_macros::some_private_function!(1);
         // crate::defame_macros::some_private_function!(input_a = 1);
         // crate::defame_macros::some_private_function!(input_a = 1);
 
-        some_private_function!(crate: 1, None);
+        some_private_function!(1, None);
         // crate::defame_macros::some_private_function!(input_a = 1, input_b = None);
         // crate::defame_macros::some_private_function!(input_b = None, input_a = 1);
 
-        some_private_function!(crate: 0, None);
+        some_private_function!(0, None);
         // self::some_private_function!(input_b = Some(0), input_a = 1);
     }
 }

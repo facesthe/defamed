@@ -1,6 +1,9 @@
 mod tests;
 
+use defamed_test::some_root_function;
+
 fn main() {
+    some_root_function!("asd");
     unimplemented!("There is no main program. Run tests instead");
 }
 

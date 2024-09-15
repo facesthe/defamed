@@ -574,7 +574,13 @@ mod tests {
 
     #[test]
     fn test_permute_defaults() {
-        let tokens = vec![quote! { #[default] a: i32 }, quote! { #[default(1)] c: u8 }];
+        let default_ident =
+            syn::Ident::new(crate::DEFAULT_HELPER_ATTR, proc_macro2::Span::call_site());
+
+        let tokens = vec![
+            quote! { #[#default_ident] a: i32 },
+            quote! { #[#default_ident(1)] c: u8 },
+        ];
 
         let punct: Punctuated<FnArg, Comma> = tokens
             .into_iter()
@@ -627,6 +633,9 @@ mod tests {
 
     #[test]
     fn test_all_positional_full() {
+        let default_token =
+            syn::Ident::new(crate::DEFAULT_HELPER_ATTR, proc_macro2::Span::call_site());
+
         let tokens = vec![
             // 34 permutations for positional and named
             quote! { a: i32 },
@@ -634,8 +643,8 @@ mod tests {
             quote! { c: usize },
             quote! { d: i64 },
             // 5 permutations for default parameters
-            quote! { #[default] e: i32 },
-            quote! { #[default(1)] f: u8 },
+            quote! { #[#default_token] e: i32 },
+            quote! { #[#default_token(1)] f: u8 },
         ];
 
         let punct: Punctuated<FnArg, Comma> = tokens

@@ -36,40 +36,39 @@ pub fn generate_func_macro(
 
     let package_ident = syn::Ident::new(&package_name.replace("-", "_"), Span::call_site());
 
-    let mut macro_matches: Punctuated<pm2::TokenStream, Semi> = params
+    let macro_matches: Punctuated<pm2::TokenStream, Semi> = params
         .into_iter()
         .map(|p| {
             let macro_signature = create_macro_signature(&p);
             let func_signature = create_func_call_signature(first_ref.as_slice(), &p);
 
-            [
-                quote! {
-                    (crate: #macro_signature) => {
-                        // let x = module_path!();
-                        // let y = x.split("::").collect::<Vec<_>>();
-                        // println !("{:?}", y);
-                        // stringify!(module_path!());
-                        // println!("{}", $module_path!())
-                        crate :: #func_path_mid #func_ident(#func_signature)
-                    }
-                },
-                quote! {
+            if let Visibility::Inherited = &vis {
+                vec![quote! {
                     (#macro_signature) => {
-                        // let x = module_path!();
-                        // let y = x.split("::").collect::<Vec<_>>();
-                        // println !("{:?}", y);
-                        // stringify!(module_path!());
-                        // println!("{}", $module_path!())
-                        #package_ident :: #func_path_mid #func_ident(#func_signature)
+                        #func_ident(#func_signature)
                     }
-                },
-            ]
-            .into_iter()
+                }]
+                .into_iter()
+            } else {
+                vec![
+                    quote! {
+                        (crate: #macro_signature) => {
+                            crate :: #func_path_mid #func_ident(#func_signature)
+                        }
+                    },
+                    quote! {
+                        (#macro_signature) => {
+                            #package_ident :: #func_path_mid #func_ident(#func_signature)
+                        }
+                    },
+                ]
+                .into_iter()
+            }
         })
         .flatten()
         .collect();
 
-    let macro_mod = syn::Ident::new(
+    let _macro_mod = syn::Ident::new(
         &format!("{}_macros", func_ident.to_token_stream().to_string()),
         Span::call_site(),
     );
