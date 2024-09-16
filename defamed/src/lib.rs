@@ -131,7 +131,7 @@ pub fn path_from_const_lit(input: pm::TokenStream) -> pm::TokenStream {
 
     let lit_str = syn::parse2::<syn::ItemMacro>(expanded).unwrap();
 
-    return lit_str.to_token_stream().into();
+    lit_str.to_token_stream().into()
 
     // let inner_val = match const_lit.expr.as_ref() {
     //     syn::Expr::Lit(syn::ExprLit {

@@ -78,7 +78,7 @@ impl Debug for ParamAttr {
         match self {
             Self::None => write!(f, "None"),
             Self::Default => write!(f, "Default"),
-            Self::Value(arg0) => write!(f, "Value({})", arg0.to_token_stream().to_string()),
+            Self::Value(arg0) => write!(f, "Value({})", arg0.to_token_stream()),
         }
     }
 }
@@ -99,18 +99,12 @@ impl ToMacroPattern for PermutedParam {
         match self {
             PermutedParam::Positional(inner) => {
                 let pat = &inner.pat;
-                let val = syn::Ident::new(
-                    &format!("{}_val", pat.to_token_stream().to_string()),
-                    pat.span(),
-                );
+                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
                 Some(quote! {$#val: expr})
             }
             PermutedParam::Named(inner) | PermutedParam::DefaultUsed(inner) => {
                 let pat = &inner.pat;
-                let val = syn::Ident::new(
-                    &format!("{}_val", pat.to_token_stream().to_string()),
-                    pat.span(),
-                );
+                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
                 Some(quote! {#pat = $#val: expr})
             }
             PermutedParam::DefaultUnused(_) => None,
@@ -123,10 +117,7 @@ impl ToMacroPattern for PermutedParam {
             | PermutedParam::Named(inner)
             | PermutedParam::DefaultUsed(inner) => {
                 let pat = &inner.pat;
-                let val = syn::Ident::new(
-                    &format!("{}_val", pat.to_token_stream().to_string()),
-                    pat.span(),
-                );
+                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
 
                 quote! {$#val}
             }
@@ -287,7 +278,7 @@ impl FunctionParams {
             res.push(arg);
         }
 
-        res.into_iter().map(|x| x).collect()
+        res.into_iter().collect()
     }
 
     /// Checks if the token sequence adheres to the following:
@@ -347,8 +338,7 @@ impl FunctionParams {
             .collect::<Vec<_>>();
 
         let named_permute = (0..=required_params.len())
-            .into_iter()
-            .map(|idx| {
+            .flat_map(|idx| {
                 // let opp_idx = required_params.len() - i;
                 let (positional, named) = required_params.split_at(idx);
 
@@ -364,7 +354,6 @@ impl FunctionParams {
                     .collect::<Vec<_>>()
                     .into_iter()
             })
-            .flatten()
             .collect::<Vec<_>>();
 
         let default_permute = Self::permute_default(&default_params);
@@ -396,13 +385,12 @@ impl FunctionParams {
             (_, 0) => named_permute,
             (_, _) => named_permute
                 .iter()
-                .map(|np| {
+                .flat_map(|np| {
                     default_permute
                         .iter()
                         .map(|dp| [np.as_slice(), dp.as_slice()].concat())
                         .collect::<Vec<_>>()
                 })
-                .flatten()
                 .collect::<Vec<_>>(),
         };
 
@@ -426,7 +414,7 @@ impl FunctionParams {
 
         let permutations = permute::permutations_of(named);
 
-        let res = permutations
+        permutations
             .into_iter()
             .map(|single_perm| {
                 single_perm
@@ -434,9 +422,7 @@ impl FunctionParams {
                     .map(|item| PermutedParam::Named(item.to_owned()))
                     .collect::<Vec<_>>()
             })
-            .collect::<Vec<_>>();
-
-        res
+            .collect::<Vec<_>>()
     }
 
     /// Perform permutations for default parameters. All permuted values are named.
@@ -452,7 +438,6 @@ impl FunctionParams {
         }
 
         let base_permute = (0..(1 << defaults.len()))
-            .into_iter()
             .map(|num| {
                 let seq = defaults
                     .iter()
@@ -475,7 +460,7 @@ impl FunctionParams {
 
         let res = base_permute
             .into_iter()
-            .map(|seq| {
+            .flat_map(|seq| {
                 let (used, unused) = Self::split_defaults(seq);
 
                 let mut used_permute = permute::permute(used);
@@ -486,10 +471,9 @@ impl FunctionParams {
 
                 used_permute.into_iter()
             })
-            .flatten()
             .collect::<Vec<_>>();
 
-        res.into_iter().filter(|item| item.len() != 0).collect()
+        res.into_iter().filter(|item| !item.is_empty()).collect()
 
         // res
     }
@@ -500,8 +484,7 @@ impl FunctionParams {
     /// are used as positional parameters.
     fn permute_positional_default(defaults: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
         let res = (1..=defaults.len())
-            .into_iter()
-            .map(|idx| {
+            .flat_map(|idx| {
                 let (positional, named) = defaults.split_at(idx);
                 let pos_params = positional
                     .iter()
@@ -522,7 +505,6 @@ impl FunctionParams {
 
                 inter.into_iter()
             })
-            .flatten()
             .collect::<Vec<_>>();
 
         res
@@ -548,7 +530,7 @@ impl FunctionParam {
         let mut default_value = ParamAttr::None;
 
         // look for default attr
-        if punct.attrs.len() > 0 {
+        if !punct.attrs.is_empty() {
             for attr in &punct.attrs {
                 if attr.path().is_ident(crate::DEFAULT_HELPER_ATTR) {
                     let meta = attr.meta.clone();

@@ -20,9 +20,6 @@ mod some_struct_macros {
     macro_rules! __some_method {
         ($self: expr) => {};
     }
-
-    #[doc(inline)]
-    pub use __some_method as some_method;
 }
 
 // some_method!(SomeStruct {});

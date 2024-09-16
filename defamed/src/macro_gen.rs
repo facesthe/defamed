@@ -30,14 +30,14 @@ pub fn generate_func_macro(
 
     let func_path_mid = func_path
         .clone()
-        .and_then(|g| Some(quote! {#g ::}))
-        .unwrap_or(quote! {});
+        .map(|g| quote! {#g ::})
+        .unwrap_or_default();
 
     let package_ident = syn::Ident::new(&package_name.replace("-", "_"), Span::call_site());
 
     let macro_matches: Punctuated<pm2::TokenStream, Semi> = params
         .into_iter()
-        .map(|p| {
+        .flat_map(|p| {
             let macro_signature = create_macro_signature(&p);
             let func_signature = create_func_call_signature(first_ref.as_slice(), &p);
 
@@ -70,11 +70,10 @@ pub fn generate_func_macro(
                 .into_iter(),
             }
         })
-        .flatten()
         .collect();
 
     let _macro_mod = syn::Ident::new(
-        &format!("{}_macros", func_ident.to_token_stream().to_string()),
+        &format!("{}_macros", func_ident.to_token_stream()),
         Span::call_site(),
     );
 
@@ -90,7 +89,7 @@ pub fn generate_func_macro(
                 Some(p) => format!("{}_", p.to_token_stream()),
                 None => "".to_string(),
             },
-            func_ident.to_token_stream().to_string()
+            func_ident.to_token_stream()
         ),
         Span::call_site(),
     );

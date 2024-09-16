@@ -9,7 +9,7 @@ fn main() {
 
 #[defamed::defamed]
 fn top_level_crate_function(#[def] a: Option<usize>) -> Option<bool> {
-    a.and_then(|us| Some(us > 0))
+    a.map(|us| us > 0)
 }
 
 mod inner {
