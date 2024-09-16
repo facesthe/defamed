@@ -5,7 +5,7 @@
 
 [![crate](https://img.shields.io/crates/v/defamed.svg)](https://crates.io/crates/defamed)
 [![docs](https://docs.rs/defamed/badge.svg)](https://docs.rs/defamed)
-
+[![build status](https://github.com/cruzerngz/defamed/actions/workflows/tests.yml/badge.svg)](https://github.com/cruzerngz/defamed/actions/workflows/tests.yml)
 </div>
 
 ## Quick start
