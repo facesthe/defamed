@@ -30,7 +30,13 @@ pub fn generate_func_macro(
 
     let func_path_root = func_path
         .clone()
-        .map(|g| quote! {$crate :: #g ::})
+        .map(|g| {
+            if g.is_ident(crate::ROOT_VISIBILITY_IDENT) {
+                quote! {$#g ::}
+            } else {
+                quote! {$crate :: #g ::}
+            }
+        })
         .unwrap_or_default();
 
     // let package_ident = syn::Ident::new(&package_name.replace("-", "_"), Span::call_site());

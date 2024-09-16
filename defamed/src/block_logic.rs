@@ -43,7 +43,7 @@ impl From<ProcOutput> for pm::TokenStream {
 
 /// Process a standalone function.
 /// The crate path of the funciton is passed as an optional parameter.
-pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path>) -> ProcOutput {
+pub fn item_fn(input: syn::ItemFn, fn_path: Option<syn::Path>) -> ProcOutput {
     let syn::ItemFn {
         attrs,
         vis,
@@ -74,14 +74,6 @@ pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path
         _ => (),
     }
 
-    let fn_path_checked = fn_path.and_then(|p| {
-        if p.is_ident(crate::ROOT_VISIBILITY_IDENT) {
-            None
-        } else {
-            Some(p)
-        }
-    });
-
     let params = match params::FunctionParams::from_punctuated(sig.inputs.clone()) {
         Ok(p) => p,
         Err(e) => return e.to_compile_error().into(),
@@ -97,9 +89,9 @@ pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path
     }
 
     let permuted = params.permute_params();
-    let stripped_attrs = params.to_punctuated();
+    let new_args = params.to_punctuated();
     let mut new_sig = sig.clone();
-    new_sig.inputs = stripped_attrs;
+    new_sig.inputs = new_args;
 
     // let doc_attrs = attrs
     //     .iter()
@@ -111,7 +103,7 @@ pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path
         vis.clone(),
         // doc_attrs,
         // package_name,
-        fn_path_checked,
+        fn_path,
         new_sig.ident.clone(),
         permuted,
     );
@@ -130,26 +122,30 @@ pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path
     }
 }
 
-#[allow(dead_code)]
-fn impl_item_fn(input: syn::ImplItemFn) {}
+#[allow(unused)]
+fn impl_item_fn(input: syn::ImplItemFn) {
+    // this is the only thing that is different from item_fn
+    let def_ness = input.defaultness;
+
+    let item_as_fn = syn::ItemFn {
+        attrs: input.attrs,
+        vis: input.vis,
+        sig: input.sig,
+        block: Box::new(input.block),
+    };
+}
 
 /// Processes all functions inside an `impl` block
-#[allow(dead_code)]
+#[allow(unused)]
 pub fn item_impl(input: syn::ItemImpl) -> ProcOutput {
-    let inter = input.items.into_iter().map(|item| {
-        match item {
-            syn::ImplItem::Const(_) => todo!(),
-            syn::ImplItem::Fn(f) => {
-
-
-            },
-            syn::ImplItem::Type(_) => todo!(),
-            syn::ImplItem::Macro(_) => todo!(),
-            syn::ImplItem::Verbatim(_) => todo!(),
-            _ => todo!(),
-        }
+    let inter = input.items.into_iter().map(|item| match item {
+        syn::ImplItem::Const(_) => todo!(),
+        syn::ImplItem::Fn(f) => {}
+        syn::ImplItem::Type(_) => todo!(),
+        syn::ImplItem::Macro(_) => todo!(),
+        syn::ImplItem::Verbatim(_) => todo!(),
+        _ => todo!(),
     });
-
 
     todo!()
 }
