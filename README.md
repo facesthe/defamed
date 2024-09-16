@@ -1,6 +1,9 @@
 # defamed
 Default, named and positional function parameters.
 
+## Quick start
+
+
 ## Introduction
 Python allows users to call functions with named and default parameters.
 

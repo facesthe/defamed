@@ -327,9 +327,7 @@ impl FunctionParams {
     /// - Remaining named parameters come after positional parameters, in all possible permutations
     /// - Default used parameters are next, in all possible permutations
     /// - Default unused parameters are last, without permutations
-    ///
-    /// TODO: permute default used parameters as positional parameters,
-    /// only when all positional parameters are used
+    /// - Positional default parameters are really last, like for real
     pub fn permute_params(&self) -> Vec<Vec<PermutedParam>> {
         let required_params = self
             .params
@@ -374,10 +372,21 @@ impl FunctionParams {
 
         // last element in named permutation matrix contains all positional parameters
         let all_positional = match named_permute.last() {
-            Some(base) => default_positional_permute
-                .into_iter()
-                .map(|seq| [base.as_slice(), seq.as_slice()].concat())
-                .collect(),
+            Some(base) => {
+                // sanity check
+                assert!(base
+                    .iter()
+                    .all(|item| if let PermutedParam::Positional(_) = item {
+                        true
+                    } else {
+                        false
+                    }));
+
+                default_positional_permute
+                    .into_iter()
+                    .map(|seq| [base.as_slice(), seq.as_slice()].concat())
+                    .collect()
+            }
             None => default_positional_permute,
         };
 
