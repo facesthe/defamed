@@ -1,5 +1,5 @@
 [package]
-name = "in_internal_Crate"
+name = "internal_Crate"
 version = "0.1.0"
 
 [dependencies]

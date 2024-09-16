@@ -1,0 +1,6 @@
+[package]
+name = "external_Crate"
+version = "0.1.0"
+
+[dependencies]
+defamed-test-lib = { path = "../../defamed-test-lib" }

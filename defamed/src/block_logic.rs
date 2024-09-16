@@ -110,7 +110,7 @@ pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path
     let generated = macro_gen::generate_func_macro(
         vis.clone(),
         // doc_attrs,
-        package_name,
+        // package_name,
         fn_path_checked,
         new_sig.ident.clone(),
         permuted,
@@ -130,9 +130,32 @@ pub fn item_fn(input: syn::ItemFn, package_name: &str, fn_path: Option<syn::Path
     }
 }
 
+#[allow(dead_code)]
+fn impl_item_fn(input: syn::ImplItemFn) {}
+
 /// Processes all functions inside an `impl` block
 #[allow(dead_code)]
-pub fn item_impl(_input: syn::ItemImpl) -> ProcOutput {
+pub fn item_impl(input: syn::ItemImpl) -> ProcOutput {
+    let inter = input.items.into_iter().map(|item| {
+        match item {
+            syn::ImplItem::Const(_) => todo!(),
+            syn::ImplItem::Fn(f) => {
+
+
+            },
+            syn::ImplItem::Type(_) => todo!(),
+            syn::ImplItem::Macro(_) => todo!(),
+            syn::ImplItem::Verbatim(_) => todo!(),
+            _ => todo!(),
+        }
+    });
+
+
+    todo!()
+}
+
+#[allow(dead_code)]
+pub fn item_mod(_input: syn::ItemMod) -> ProcOutput {
     todo!()
 }
 

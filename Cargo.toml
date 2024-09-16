@@ -1,9 +1,10 @@
 [workspace]
-members = ["defamed", "defamed_test", "examples/*"]
+members = ["defamed", "defamed-test-lib", "examples/*"]
 resolver = "2"
 
 [workspace.package]
 edition = "2021"
 
+# compile macros with a little optimization
 [profile.dev.build-override]
 opt-level = 2

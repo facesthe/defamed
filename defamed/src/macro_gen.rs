@@ -17,7 +17,7 @@ use crate::{params::PermutedParam, traits::ToMacroPattern};
 /// while reorderng and substituting parameters as needed.
 pub fn generate_func_macro(
     vis: Visibility,
-    package_name: &str,
+    // package_name: &str,
     func_path: Option<syn::Path>,
     func_ident: syn::Ident,
     params: Vec<Vec<PermutedParam>>,
@@ -28,46 +28,23 @@ pub fn generate_func_macro(
         .cloned()
         .expect("at least one match pattern expected");
 
-    let func_path_mid = func_path
+    let func_path_root = func_path
         .clone()
-        .map(|g| quote! {#g ::})
+        .map(|g| quote! {$crate :: #g ::})
         .unwrap_or_default();
 
-    let package_ident = syn::Ident::new(&package_name.replace("-", "_"), Span::call_site());
+    // let package_ident = syn::Ident::new(&package_name.replace("-", "_"), Span::call_site());
 
     let macro_matches: Punctuated<pm2::TokenStream, Semi> = params
         .into_iter()
-        .flat_map(|p| {
+        .map(|p| {
             let macro_signature = create_macro_signature(&p);
             let func_signature = create_func_call_signature(first_ref.as_slice(), &p);
 
-            match &vis {
-                // pub macros require differentiation between internal and external calls
-                Visibility::Public(_) => vec![
-                    quote! {
-                        (crate: #macro_signature) => {
-                            crate :: #func_path_mid #func_ident(#func_signature)
-                        }
-                    },
-                    quote! {
-                        (#macro_signature) => {
-                            #package_ident :: #func_path_mid #func_ident(#func_signature)
-                        }
-                    },
-                ]
-                .into_iter(),
-                Visibility::Restricted(_) => vec![quote! {
-                    (#macro_signature) => {
-                        crate :: #func_path_mid #func_ident(#func_signature)
-                    }
-                }]
-                .into_iter(),
-                Visibility::Inherited => vec![quote! {
-                    (#macro_signature) => {
-                        #func_ident(#func_signature)
-                    }
-                }]
-                .into_iter(),
+            quote! {
+                (#macro_signature) => {
+                    #func_path_root #func_ident(#func_signature)
+                }
             }
         })
         .collect();
