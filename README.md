@@ -1,5 +1,12 @@
 # defamed
+<div align="center">
+
 Default, named and positional function parameters.
+
+[![crate](https://img.shields.io/crates/v/defamed.svg)](https://crates.io/crates/defamed)
+[![docs](https://docs.rs/defamed/badge.svg)](https://docs.rs/defamed)
+
+</div>
 
 ## Quick start
 
