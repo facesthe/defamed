@@ -1,6 +1,8 @@
 //! Test lib for defamed
 //!
 
+use std::borrow::Cow;
+
 mod tests;
 
 /// This function is public, so it can be used by other crates as well as internally.
@@ -9,16 +11,16 @@ mod tests;
 /// let add_default = defamed_test_lib::some_root_function!("base");
 /// let add_known = defamed_test_lib::some_root_function!("base", concat = Some(" concat"));
 ///
-/// assert_eq!(add_default.as_str(), "base");
-/// assert_eq!(add_known.as_str(), "base concat");
+/// assert_eq!(add_default, "base");
+/// assert_eq!(add_known, "base concat");
 /// ```
 #[defamed::defamed(crate)]
-pub fn some_root_function(base: &str, #[def] concat: Option<&str>) -> String {
+pub fn some_root_function<'a>(base: &'a str, #[def] concat: Option<&str>) -> Cow<'a, str> {
     let _ = complex_function!(1, 2);
 
     match concat {
-        Some(c) => base.to_owned() + c,
-        None => base.to_owned(),
+        Some(c) => Cow::Owned(base.to_owned() + c),
+        None => Cow::Borrowed(base),
     }
 }
 
@@ -36,14 +38,14 @@ pub mod inner {
 
 #[defamed::defamed]
 fn complex_function(
-    base: i32,
-    other: i32,
+    lhs: i32,
+    rhs: i32,
     // literals can be used as default values
     #[def(true)] add: bool,
     // if no default value is provided, the type must implement Default
     #[def] divide_result_by: Option<i32>,
 ) -> i32 {
-    let intermediate = if add { base + other } else { base - other };
+    let intermediate = if add { lhs + rhs } else { lhs - rhs };
 
     match divide_result_by {
         Some(div) => intermediate / div,

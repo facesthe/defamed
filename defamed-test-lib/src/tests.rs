@@ -11,22 +11,12 @@ fn test_complex_function() {
 
     // all arguments can be named
     assert_eq!(
-        complex_function!(
-            base = 20,
-            other = 10,
-            add = false,
-            divide_result_by = Some(2)
-        ),
+        complex_function!(lhs = 20, rhs = 10, add = false, divide_result_by = Some(2)),
         5
     );
     // positional arguments can be named in any order, but must be provided before default arguments
     assert_eq!(
-        complex_function!(
-            other = 10,
-            base = 20,
-            divide_result_by = Some(2),
-            add = false
-        ),
+        complex_function!(rhs = 10, lhs = 20, divide_result_by = Some(2), add = false),
         5
     );
     assert_eq!(complex_function!(20, 10, false, Some(2)), 5);
