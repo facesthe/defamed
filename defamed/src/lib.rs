@@ -1,4 +1,4 @@
-#![cfg_attr(not(doctest), doc = include_str!("../../README.md"))]
+#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
 
 mod block_logic;
 mod macro_gen;

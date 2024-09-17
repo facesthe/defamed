@@ -44,10 +44,16 @@ assert_eq!(5, complex_function!(5, 5, divide_result_by = Some(2)));
 - locally scoped macros only
 #### [default_args](https://docs.rs/default_args)
 - accepts python-like syntax in function signature
-- may cause code clutter
+- may cause code clutter due to using function macros
+#### [duang](https://docs.rs/duang)
+- similar to `default_args`
 #### [optargs](https://docs.rs/optargs)
 - infers optional parameters that use the Option type
 - struct builder macro
+#### [default_kwargs](https://docs.rs/default_kwargs)
+- keyword argument passing only
+#### [nade](https://docs.rs/nade)
+- macro requires explicit import to call underlying function
 
 <!-- ## Introduction
 Python allows users to call functions with named and default parameters.
