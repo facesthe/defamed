@@ -27,6 +27,6 @@ jobs:
           toolchain: stable
           override: true
 
-      - run: cargo publish --token ${CRATES_IO_TOKEN}
+      - run: cargo publish --package defamed --token ${CRATES_IO_TOKEN}
         env:
           CRATES_IO_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
