@@ -227,10 +227,10 @@ impl FunctionParams {
     }
 
     /// Converts `Self` back to a punctuated sequence of `syn::FnArg`, with all matching inner attributes stripped.
-    pub fn to_punctuated(self) -> syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma> {
+    pub fn to_punctuated(&self) -> syn::punctuated::Punctuated<syn::FnArg, syn::token::Comma> {
         let mut res = Vec::<syn::FnArg>::new();
 
-        match self.receiver {
+        match &self.receiver {
             FnReceiver::None => (),
             FnReceiver::Slf {
                 ty,
@@ -242,30 +242,31 @@ impl FunctionParams {
             } => {
                 res.push(syn::FnArg::Receiver(syn::Receiver {
                     attrs: Vec::new(),
-                    reference: if reference {
-                        Some((Default::default(), lifetime))
+                    reference: if *reference {
+                        Some((Default::default(), lifetime.clone()))
                     } else {
                         None
                     },
-                    mutability: if mutable {
+                    mutability: if *mutable {
                         Some(Default::default())
                     } else {
                         None
                     },
-                    self_token: token,
-                    colon_token,
-                    ty: Box::new(ty),
+                    self_token: *token,
+                    colon_token: *colon_token,
+                    ty: Box::new(ty.clone()),
                 }));
             }
         }
 
-        for param in self.params {
-            let pat = param.pat;
-            let ty = param.ty;
+        for param in &self.params {
+            let pat = param.pat.to_owned();
+            let ty = param.ty.to_owned();
             let s_attrs = param
                 .attrs
-                .into_iter()
+                .iter()
                 .filter(|a| !a.path().is_ident(crate::DEFAULT_HELPER_ATTR))
+                .cloned()
                 .collect::<Vec<_>>();
 
             let arg = syn::FnArg::Typed(syn::PatType {
@@ -283,6 +284,7 @@ impl FunctionParams {
 
     /// Checks if the token sequence adheres to the following:
     /// - Default parameters must be at the end of the sequence
+    ///
     /// TODO: write a test for this
     pub fn first_invalid_param(&self) -> Option<&FunctionParam> {
         let mut iter = self.params.iter();
@@ -299,13 +301,7 @@ impl FunctionParams {
             }
         };
 
-        match iter.all(|item| {
-            if let ParamAttr::None = item.default_value {
-                false
-            } else {
-                true
-            }
-        }) {
+        match iter.all(|item| !matches!(item.default_value, ParamAttr::None)) {
             true => None,
             false => Some(first_default),
         }
@@ -323,10 +319,7 @@ impl FunctionParams {
         let required_params = self
             .params
             .iter()
-            .take_while(|p| match p.default_value {
-                ParamAttr::None => true,
-                _ => false,
-            })
+            .take_while(|p| matches!(p.default_value, ParamAttr::None))
             .cloned()
             .collect::<Vec<_>>();
 
@@ -365,11 +358,7 @@ impl FunctionParams {
                 // sanity check
                 assert!(base
                     .iter()
-                    .all(|item| if let PermutedParam::Positional(_) = item {
-                        true
-                    } else {
-                        false
-                    }));
+                    .all(|item| matches!(item, PermutedParam::Positional(_))));
 
                 default_positional_permute
                     .into_iter()
@@ -405,10 +394,10 @@ impl FunctionParams {
     /// Perform permutation of all items in slice.
     /// All items will be of the [PermutedParam::Named] variant
     fn permute_named(named: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
-        if !named.iter().all(|n| match n.default_value {
-            ParamAttr::None => true,
-            _ => false,
-        }) {
+        if !named
+            .iter()
+            .all(|n| matches!(n.default_value, ParamAttr::None))
+        {
             panic!("All items in slice must not have default values");
         }
 
@@ -430,10 +419,10 @@ impl FunctionParams {
     /// Each item in the slice must have a default value.
     /// Additionally, default params can be used or unused. These are also permuted as well.
     fn permute_default(defaults: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
-        if !defaults.iter().all(|n| match n.default_value {
-            ParamAttr::None => false,
-            _ => true,
-        }) {
+        if !defaults
+            .iter()
+            .all(|n| !matches!(n.default_value, ParamAttr::None))
+        {
             panic!("All items in slice must have default values");
         }
 
@@ -455,8 +444,6 @@ impl FunctionParams {
                 seq
             })
             .collect::<Vec<_>>();
-
-        // println!("{:#?}", base_permute);
 
         let res = base_permute
             .into_iter()
@@ -551,7 +538,7 @@ impl FunctionParam {
                         syn::Meta::NameValue(nv) => {
                             let e = syn::Error::new(
                                     nv.span(),
-                                    format!("name-values are not supported. Use #[{}] or #[{}(CONST_VALUE)] instead.",
+                                    format!("name-values are not supported. Use #[{}] or #[{}(CONST_EXPRESSION)] instead.",
                                         crate::DEFAULT_HELPER_ATTR,
                                         crate::DEFAULT_HELPER_ATTR
                                     ),

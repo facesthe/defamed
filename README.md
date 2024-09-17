@@ -221,7 +221,6 @@ This proc-macro currently works for standalone functions defined outside of an `
     - other attempts:
         - caller_modpath: https://docs.rs/caller_modpath/latest/caller_modpath/
             - also requires nightly
-
         - eager: https://docs.rs/eager/latest/eager/macro.eager.html
             - does not expand builtin macro
     - crate name eval can be done at compile time using proc-macros
@@ -231,10 +230,8 @@ This proc-macro currently works for standalone functions defined outside of an `
 
 - New (iffy) solution: multi stage macros
     - this solution requires that this library is also included by the user in their crate (double import)
-    - first proc-macro generates actual function macro with all permutations
-    and exports function macro under module scope
-    - when called, function macro resolves to another proc-macro to eval crate root path (crate:: or otherwise).
-    this proc-macro is provided by this crate, hence the need to double import
+    - first proc-macro generates actual function macro with all permutations and exports function macro under module scope
+    - when called, function macro resolves to another proc-macro to eval crate root path (crate:: or otherwise). this proc-macro is provided by this crate, hence the need to double import
     - final function substituted in code
 
 - New (less iffy solution): more macro permutations!

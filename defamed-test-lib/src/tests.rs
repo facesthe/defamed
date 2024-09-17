@@ -1,36 +1,33 @@
 #![cfg(test)]
+use super::*;
 
-#[defamed::defamed(submodule)]
-pub fn exported_function() {}
+#[test]
+fn test_complex_function() {
+    let _ = complex_function!(1, 2);
 
-pub struct SomeStruct {}
+    assert_eq!(complex_function!(10, 5), 15);
+    assert_eq!(complex_function!(10, 5, add = false), 5);
+    assert_eq!(complex_function!(10, 20, divide_result_by = Some(2)), 15);
 
-macro_rules! some_macro {
-    () => {};
+    // all arguments can be named
+    assert_eq!(
+        complex_function!(
+            base = 20,
+            other = 10,
+            add = false,
+            divide_result_by = Some(2)
+        ),
+        5
+    );
+    // positional arguments can be named in any order, but must be provided before default arguments
+    assert_eq!(
+        complex_function!(
+            other = 10,
+            base = 20,
+            divide_result_by = Some(2),
+            add = false
+        ),
+        5
+    );
+    assert_eq!(complex_function!(20, 10, false, Some(2)), 5);
 }
-
-impl SomeStruct {
-    pub fn some_method(&self) {}
-}
-
-mod some_struct_macros {
-
-    #[macro_export]
-    #[doc(hidden)]
-    macro_rules! __some_method {
-        ($self: expr) => {};
-    }
-}
-
-// some_method!(SomeStruct {});
-// some_struct_macros
-
-// defamed_test_lib::macros::fiz!();
-// defamed_test_lib::macros::fiz!();
-
-fn submodule_fn() {
-    // defamed_test_lib::defame_macros::some_defamed_function!(1, None);
-}
-// defamed_test_lib::defame_macros::some_defamed_function!(1, 2);
-// defamed_test_lib::defame_macros::some_defamed_function!(1);
-// defamed_test_lib::named_macros::some_named_function!(9);
