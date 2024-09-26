@@ -2,9 +2,12 @@
 
 use proc_macro as pm;
 use proc_macro2 as pm2;
-use quote::ToTokens;
+use quote::{quote, ToTokens};
 
-use crate::{macro_gen, params};
+use crate::{
+    macro_gen,
+    permute::{fields::StructFields, params},
+};
 
 /// Output of a processing function
 pub struct ProcOutput {
@@ -119,6 +122,116 @@ pub fn item_fn(input: syn::ItemFn, fn_path: Option<syn::Path>) -> ProcOutput {
     ProcOutput {
         modified: mod_fn,
         generated,
+    }
+}
+
+/// Process a struct definition
+pub fn item_struct(input: syn::ItemStruct, s_path: Option<syn::Path>) -> ProcOutput {
+    match input.fields {
+        syn::Fields::Named(named_fields) => item_struct_struct(
+            s_path,
+            input.attrs,
+            input.vis,
+            input.ident,
+            input.generics,
+            named_fields,
+        ),
+        syn::Fields::Unnamed(unnamed_fields) => item_struct_tuple(
+            s_path,
+            input.attrs,
+            input.vis,
+            input.ident,
+            input.generics,
+            unnamed_fields,
+        ),
+        syn::Fields::Unit => {
+            return {
+                let warning = proc_macro_warning::FormattedWarning::new_deprecated(
+                    "IrrelevantMacro",
+                    "Remove this attribute macro. Unit structs do not contain any fields and cannot have default parameters.",
+                    input.ident.span(),
+                );
+
+                quote! {
+                    #warning
+                }
+                .into()
+            }
+        }
+    }
+}
+
+/// Process a normal struct
+fn item_struct_struct(
+    s_path: Option<syn::Path>,
+    attrs: Vec<syn::Attribute>,
+    vis: syn::Visibility,
+    ident: syn::Ident,
+    generics: syn::Generics,
+    fields: syn::FieldsNamed,
+) -> ProcOutput {
+    // asd
+
+    match (&vis, s_path.as_ref()) {
+        (syn::Visibility::Restricted(syn::VisRestricted { path, .. }), None) => {
+            if !path.is_ident("self") {
+                return syn::Error::new(
+                    ident.span(),
+                    "Attribute requires a path to the struct for public structs",
+                )
+                .to_compile_error()
+                .into();
+            }
+        }
+        (syn::Visibility::Public(_), None) => {
+            return syn::Error::new(
+                ident.span(),
+                "Attribute requires a path to the struct for public structs",
+            )
+            .to_compile_error()
+            .into();
+        }
+        _ => (),
+    }
+
+    let n_fields = StructFields::from_named(ident.clone(), fields.named.clone());
+
+    ProcOutput {
+        modified: syn::ItemStruct {
+            attrs,
+            vis,
+            struct_token: Default::default(),
+            ident,
+            generics,
+            fields: syn::Fields::Named(fields),
+            semi_token: None,
+        }
+        .to_token_stream(),
+        generated: quote! {},
+    }
+}
+
+/// Process a tuple struct
+fn item_struct_tuple(
+    s_path: Option<syn::Path>,
+    attrs: Vec<syn::Attribute>,
+    vis: syn::Visibility,
+    ident: syn::Ident,
+    generics: syn::Generics,
+    fields: syn::FieldsUnnamed,
+) -> ProcOutput {
+    ProcOutput {
+        modified: syn::ItemStruct {
+            attrs,
+            vis,
+            struct_token: Default::default(),
+            ident,
+            generics,
+            fields: syn::Fields::Unnamed(fields),
+            semi_token: None,
+        }
+        .to_token_stream(),
+        generated: quote! {},
     }
 }
 

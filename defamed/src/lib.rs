@@ -1,11 +1,13 @@
-#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
+// #![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
+#![doc = include_str!("../README.md")]
 
 mod block_logic;
 mod macro_gen;
-mod params;
+mod permute;
 mod traits;
 
 use proc_macro as pm;
+use proc_macro2 as pm2;
 use syn::spanned::Spanned;
 
 /// Identifier for public macros defined in the root module
@@ -13,6 +15,16 @@ pub(crate) const ROOT_VISIBILITY_IDENT: &str = "crate";
 
 /// "Helper" attribute for annotating function parameters
 pub(crate) const DEFAULT_HELPER_ATTR: &str = "def";
+
+/// Attempt to parse multiple items at once, returning a tuple of results.
+macro_rules! syn_parses {
+    ($item: expr, $($id: path),+) => {
+        (
+            concat!($(concat!(stringify!($id), ", ")),+),
+            ($(syn::parse::<$id>($item.clone())),+)
+        )
+    }
+}
 
 /// Create a wrapper macro that accepts positional and arbitrarily ordered named arguments.
 ///
@@ -66,10 +78,7 @@ pub(crate) const DEFAULT_HELPER_ATTR: &str = "def";
 /// ```
 #[proc_macro_attribute]
 pub fn defamed(attrs: pm::TokenStream, input: pm::TokenStream) -> pm::TokenStream {
-    // let package_name =
-    //     std::env::var("CARGO_PKG_NAME").expect("every crate must have a package name");
-
-    let fn_path = match attrs.is_empty() {
+    let item_path = match attrs.is_empty() {
         true => None,
         false => {
             // asd
@@ -88,9 +97,18 @@ pub fn defamed(attrs: pm::TokenStream, input: pm::TokenStream) -> pm::TokenStrea
         }
     };
 
-    let res = match syn::parse::<syn::ItemFn>(input.clone()) {
-        Ok(input) => block_logic::item_fn(input, fn_path),
-        Err(e) => e.to_compile_error().into(),
+    let (expected_str, parsed) = syn_parses!(input, syn::ItemStruct, syn::ItemFn);
+
+    let res = match parsed {
+        (Ok(s), _) => block_logic::item_struct(s, item_path),
+        (_, Ok(f)) => block_logic::item_fn(f, item_path),
+
+        _ => syn::Error::new(
+            pm2::Span::call_site(),
+            format!("Item not supported. Expected: {}", expected_str),
+        )
+        .to_compile_error()
+        .into(),
     };
 
     res.into()

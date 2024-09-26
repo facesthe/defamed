@@ -4,9 +4,11 @@ use core::panic;
 use std::fmt::Debug;
 
 use quote::{quote, ToTokens};
-use syn::spanned::Spanned;
+use syn::{punctuated::Punctuated, spanned::Spanned};
 
 use crate::traits::ToMacroPattern;
+
+use super::ParamAttr;
 
 /// Parsed function parameters
 #[derive(Clone)]
@@ -33,22 +35,12 @@ pub enum FnReceiver {
     /// Self
     Slf {
         ty: syn::Type,
-        token: syn::token::SelfValue,
+        token: syn::Token![self],
         mutable: bool,
         reference: bool,
         lifetime: Option<syn::Lifetime>,
-        colon_token: Option<syn::token::Colon>,
+        colon_token: Option<syn::Token![:]>,
     },
-}
-
-#[derive(Clone)]
-pub enum ParamAttr {
-    /// No helper attribute
-    None,
-    // Use default trait for initialization
-    Default,
-    // Use const expr for initialization
-    Value(syn::Expr),
 }
 
 /// Permutation of positional and named parameters
@@ -143,17 +135,17 @@ impl PartialEq for FunctionParam {
 impl PartialEq for PermutedParam {
     fn eq(&self, other: &Self) -> bool {
         let inner = match self {
-            PermutedParam::Positional(_i) => _i,
-            PermutedParam::Named(_i) => _i,
-            PermutedParam::DefaultUsed(_i) => _i,
-            PermutedParam::DefaultUnused(_i) => _i,
+            Self::Positional(_i) => _i,
+            Self::Named(_i) => _i,
+            Self::DefaultUsed(_i) => _i,
+            Self::DefaultUnused(_i) => _i,
         };
 
         let othr = match other {
-            PermutedParam::Positional(_i) => _i,
-            PermutedParam::Named(_i) => _i,
-            PermutedParam::DefaultUsed(_i) => _i,
-            PermutedParam::DefaultUnused(_i) => _i,
+            Self::Positional(_i) => _i,
+            Self::Named(_i) => _i,
+            Self::DefaultUsed(_i) => _i,
+            Self::DefaultUnused(_i) => _i,
         };
 
         inner == othr
@@ -573,6 +565,28 @@ mod tests {
     use syn::{punctuated::Punctuated, token::Comma, FnArg};
 
     #[test]
+    fn test_init_params() {
+        let default_ident =
+            syn::Ident::new(crate::DEFAULT_HELPER_ATTR, proc_macro2::Span::call_site());
+
+        let tokens = vec![
+            quote! { a: i32 },
+            quote! { b: u8 },
+            quote! { #[#default_ident] c: usize },
+            quote! { #[#default_ident(42)] d: i64 },
+        ];
+
+        let punct: Punctuated<FnArg, Comma> = tokens
+            .into_iter()
+            .map(|t| syn::parse2::<FnArg>(t).unwrap())
+            .collect();
+
+        let params = FunctionParams::from_punctuated(punct).unwrap();
+
+        assert_eq!(params.params.len(), 4);
+    }
+
+    #[test]
     fn test_permute_named() {
         let tokens = vec![
             quote! { a: i32 },
@@ -710,5 +724,10 @@ mod tests {
         println!("{:#?}", permutations[0]);
 
         assert_eq!(permutations.len(), 34 * 5 + 3);
+    }
+
+    #[test]
+    fn test_asd() {
+        // let x =
     }
 }

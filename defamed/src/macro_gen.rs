@@ -8,19 +8,19 @@ use syn::{
     Visibility,
 };
 
-use crate::{params::PermutedParam, traits::ToMacroPattern};
+use crate::traits::ToMacroPattern;
 
 /// Generate a macro with all permutations of positional, named and default parameters.
 /// The macro inherits all doc comments from the original function.
 ///
 /// This macro generates code that calls the actual function,
 /// while reorderng and substituting parameters as needed.
-pub fn generate_func_macro(
+pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
     vis: Visibility,
     // package_name: &str,
     func_path: Option<syn::Path>,
     func_ident: syn::Ident,
-    params: Vec<Vec<PermutedParam>>,
+    params: Vec<Vec<P>>,
 ) -> pm2::TokenStream {
     // first pattern contains the correct order of parameteres to call
     let first_ref = params
@@ -103,18 +103,35 @@ pub fn generate_func_macro(
     }
 }
 
+/// Struct with named fields
+pub fn generate_item_struct_struct_macro(
+    ident: syn::Ident,
+    named_fields: syn::FieldsNamed,
+) -> pm2::TokenStream {
+    //asldkdm
+    quote! {}
+}
+
+/// Tuple struct
+pub fn generate_item_struct_tuple_macro(
+    ident: syn::Ident,
+    unnamed_fields: syn::FieldsUnnamed,
+) -> pm2::TokenStream {
+    quote! {}
+}
+
 /// Create the macro pattern signature for a given vector of parameters.
-fn create_macro_signature(params: &[PermutedParam]) -> pm2::TokenStream {
+fn create_macro_signature<P: ToMacroPattern>(params: &[P]) -> pm2::TokenStream {
     let seq: Punctuated<pm2::TokenStream, Comma> =
         params.iter().filter_map(|p| p.to_macro_pattern()).collect();
 
     seq.to_token_stream()
 }
 
-fn create_func_call_signature(
-    reference: &[PermutedParam],
-    params: &[PermutedParam],
-) -> pm2::TokenStream {
+fn create_func_call_signature<P>(reference: &[P], params: &[P]) -> pm2::TokenStream
+where
+    P: ToMacroPattern + PartialEq,
+{
     let seq: Punctuated<pm2::TokenStream, Comma> = reference
         .iter()
         .map(|r| {

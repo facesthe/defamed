@@ -36,6 +36,19 @@ pub mod inner {
     }
 }
 
+/// Some struct definition
+#[defamed::defamed(crate)]
+pub struct SomeStruct {
+    // #[def]
+    pub field: i32,
+}
+
+#[defamed::defamed]
+pub struct StructTuple(pub i32, pub i32);
+
+// #[defamed::defamed]
+pub enum ASD {}
+
 #[defamed::defamed]
 fn complex_function(
     lhs: i32,
