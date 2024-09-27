@@ -156,7 +156,7 @@ impl ToMacroPattern for PermutedItem<StructField> {
                 //     ParamAttr::Value(expr) => quote! {#ident: #expr},
                 // }
 
-                quote!{#ident: $#pat}
+                quote! {#ident: $#pat}
             }
             PermutedItem::Named(StructField {
                 vis,
