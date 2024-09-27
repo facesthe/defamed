@@ -10,6 +10,23 @@ use syn::{
 
 use crate::traits::ToMacroPattern;
 
+#[derive(Clone, Copy, Debug)]
+pub enum MacroType {
+    Function,
+    Struct,
+    // Enum,
+}
+
+/// Converts `self` to doc item disambiguation prefix
+impl ToString for MacroType {
+    fn to_string(&self) -> String {
+        match self {
+            MacroType::Function => "fn@".to_string(),
+            MacroType::Struct => "struct@".to_string(),
+        }
+    }
+}
+
 /// Generate a macro with all permutations of positional, named and default parameters.
 /// The macro inherits all doc comments from the original function.
 ///
@@ -18,9 +35,10 @@ use crate::traits::ToMacroPattern;
 pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
     vis: Visibility,
     // package_name: &str,
-    func_path: Option<syn::Path>,
-    func_ident: syn::Ident,
+    item_path: Option<syn::Path>,
+    item_ident: syn::Ident,
     params: Vec<Vec<P>>,
+    output: MacroType,
 ) -> pm2::TokenStream {
     // first pattern contains the correct order of parameteres to call
     let first_ref = params
@@ -28,7 +46,7 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
         .cloned()
         .expect("at least one match pattern expected");
 
-    let func_path_root = func_path
+    let func_path_root = item_path
         .clone()
         .map(|g| {
             if g.is_ident(crate::ROOT_VISIBILITY_IDENT) {
@@ -47,16 +65,29 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
             let macro_signature = create_macro_signature(&p);
             let func_signature = create_func_call_signature(first_ref.as_slice(), &p);
 
-            quote! {
-                (#macro_signature) => {
-                    #func_path_root #func_ident(#func_signature)
-                }
+            match output {
+                MacroType::Function => quote! {
+                    (#macro_signature) => {
+                        #func_path_root #item_ident(#func_signature)
+                    }
+                },
+                MacroType::Struct => quote! {
+                    (#macro_signature) => {
+                        #func_path_root #item_ident{#func_signature}
+                    }
+                },
             }
+
+            // quote! {
+            //     (#macro_signature) => {
+            //         #func_path_root #item_ident(#func_signature)
+            //     }
+            // }
         })
         .collect();
 
     let _macro_mod = syn::Ident::new(
-        &format!("{}_macros", func_ident.to_token_stream()),
+        &format!("{}_macros", item_ident.to_token_stream()),
         Span::call_site(),
     );
 
@@ -68,11 +99,11 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
     let func_dunder_ident = syn::Ident::new(
         &format!(
             "__{}{}__",
-            match &func_path {
+            match &item_path {
                 Some(p) => format!("{}_", p.to_token_stream()),
                 None => "".to_string(),
             },
-            func_ident.to_token_stream()
+            item_ident.to_token_stream()
         ),
         Span::call_site(),
     );
@@ -81,6 +112,7 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
     //     Some(p) => quote! {crate::#p::#func_ident},
     //     None => quote! {crate::#func_ident},
     // };
+    let item_prefix = output.to_string();
 
     quote! {
         // #vis mod #macro_mod {
@@ -94,8 +126,8 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
 
             #[doc(inline)]
             // #[allow(unused_macros)]
-            #[doc = concat!("[`defamed`] wrapper for [`", stringify!(#func_ident), "()`]")]
-            #vis use #func_dunder_ident as #func_ident;
+            #[doc = concat!("[`defamed`] wrapper for [`", #item_prefix, stringify!(#item_ident), "`]")]
+            #vis use #func_dunder_ident as #item_ident;
 
         // }
         // #vis use #macro_mod::*;
@@ -103,22 +135,22 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
     }
 }
 
-/// Struct with named fields
-pub fn generate_item_struct_struct_macro(
-    ident: syn::Ident,
-    named_fields: syn::FieldsNamed,
-) -> pm2::TokenStream {
-    //asldkdm
-    quote! {}
-}
+// /// Struct with named fields
+// pub fn generate_item_struct_struct_macro(
+//     ident: syn::Ident,
+//     named_fields: syn::FieldsNamed,
+// ) -> pm2::TokenStream {
+//     //asldkdm
+//     quote! {}
+// }
 
-/// Tuple struct
-pub fn generate_item_struct_tuple_macro(
-    ident: syn::Ident,
-    unnamed_fields: syn::FieldsUnnamed,
-) -> pm2::TokenStream {
-    quote! {}
-}
+// /// Tuple struct
+// pub fn generate_item_struct_tuple_macro(
+//     ident: syn::Ident,
+//     unnamed_fields: syn::FieldsUnnamed,
+// ) -> pm2::TokenStream {
+//     quote! {}
+// }
 
 /// Create the macro pattern signature for a given vector of parameters.
 fn create_macro_signature<P: ToMacroPattern>(params: &[P]) -> pm2::TokenStream {
@@ -128,11 +160,18 @@ fn create_macro_signature<P: ToMacroPattern>(params: &[P]) -> pm2::TokenStream {
     seq.to_token_stream()
 }
 
+/// Uses the reference pattern to order the parameters in the function call.
+///
+/// All elements in `reference` must have an equal (by [PartialEq]) in `params`.
+///
+/// If there are more elements in `params` than in `reference`, the extra elements are appended to the end.
 fn create_func_call_signature<P>(reference: &[P], params: &[P]) -> pm2::TokenStream
 where
     P: ToMacroPattern + PartialEq,
 {
-    let seq: Punctuated<pm2::TokenStream, Comma> = reference
+    assert!(reference.len() <= params.len());
+
+    let mut seq: Punctuated<pm2::TokenStream, Comma> = reference
         .iter()
         .map(|r| {
             let p = params
@@ -143,6 +182,21 @@ where
             p.to_func_call_pattern()
         })
         .collect();
+
+    match params.len().cmp(&reference.len()) {
+        std::cmp::Ordering::Less => {
+            unimplemented!("reference must have at least as many elements as params")
+        }
+        std::cmp::Ordering::Equal => (),
+        std::cmp::Ordering::Greater => {
+            // todo!();
+            let additional = params[reference.len()..]
+                .iter()
+                .map(|p| p.to_func_call_pattern());
+
+            seq.extend(additional);
+        }
+    }
 
     seq.to_token_stream()
 }

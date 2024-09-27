@@ -5,8 +5,12 @@ use proc_macro2 as pm2;
 use quote::{quote, ToTokens};
 
 use crate::{
-    macro_gen,
-    permute::{fields::StructFields, params},
+    macro_gen::{self, MacroType},
+    permute::{
+        fields::{StructField, StructFields},
+        params, ParamAttr, PermutedItem,
+    },
+    traits::StripAttributes,
 };
 
 /// Output of a processing function
@@ -109,6 +113,7 @@ pub fn item_fn(input: syn::ItemFn, fn_path: Option<syn::Path>) -> ProcOutput {
         fn_path,
         new_sig.ident.clone(),
         permuted,
+        macro_gen::MacroType::Function,
     );
 
     let mod_fn = syn::ItemFn {
@@ -170,11 +175,45 @@ fn item_struct_struct(
     generics: syn::Generics,
     fields: syn::FieldsNamed,
 ) -> ProcOutput {
-    // asd
-
     match (&vis, s_path.as_ref()) {
-        (syn::Visibility::Restricted(syn::VisRestricted { path, .. }), None) => {
-            if !path.is_ident("self") {
+        (syn::Visibility::Restricted(syn::VisRestricted { path, .. }), p) => {
+            if !fields.named.iter().all(|f| {
+                matches!(
+                    f.vis,
+                    syn::Visibility::Public(_) | syn::Visibility::Restricted(_)
+                )
+            }) {
+                return syn::Error::new(
+                    ident.span(),
+                    "Non-private structs must have non-private fields",
+                )
+                .to_compile_error()
+                .into();
+            }
+
+            if matches!(p, None) {
+                if !path.is_ident("self") {
+                    return syn::Error::new(
+                        ident.span(),
+                        "Attribute requires a path to the struct for public structs",
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            }
+        }
+        (syn::Visibility::Public(_), p) => {
+            if !fields
+                .named
+                .iter()
+                .all(|f| matches!(f.vis, syn::Visibility::Public(_)))
+            {
+                return syn::Error::new(ident.span(), "Public structs must have public fields")
+                    .to_compile_error()
+                    .into();
+            }
+
+            if matches!(p, None) {
                 return syn::Error::new(
                     ident.span(),
                     "Attribute requires a path to the struct for public structs",
@@ -183,18 +222,66 @@ fn item_struct_struct(
                 .into();
             }
         }
-        (syn::Visibility::Public(_), None) => {
-            return syn::Error::new(
-                ident.span(),
-                "Attribute requires a path to the struct for public structs",
-            )
-            .to_compile_error()
-            .into();
-        }
-        _ => (),
+        (syn::Visibility::Inherited, _) => (),
     }
 
-    let n_fields = StructFields::from_named(ident.clone(), fields.named.clone());
+    let n_fields = match StructFields::from_named(ident.clone(), fields.named.clone()) {
+        Ok(f) => f,
+        Err(e) => return e.to_compile_error().into(),
+    };
+
+    let stripped_fields = n_fields.strip_attributes();
+    let fields_inner = n_fields.fields;
+
+    let (positional, defaults) = {
+        let partition = fields_inner.iter().enumerate().find_map(|(idx, f)| {
+            if matches!(f.default_value, ParamAttr::Default | ParamAttr::Value(_)) {
+                Some(idx)
+            } else {
+                None
+            }
+        });
+
+        match partition {
+            Some(p) => {
+                let tup = fields_inner.split_at(p);
+                (tup.0.to_vec(), tup.1.to_vec())
+            }
+            None => (fields_inner, vec![]),
+        }
+
+        // (0,0)
+    };
+
+    let permuted = crate::permute::permute(positional, defaults);
+
+    let joined = permuted
+        .into_iter()
+        .map(|permutation| {
+            let has_missing = permutation
+                .1
+                .iter()
+                .any(|item| matches!(item, PermutedItem::Default(_)));
+
+            match has_missing {
+                true => [
+                    permutation.0,
+                    permutation.1,
+                    vec![PermutedItem::Default(StructField::dot_dot())],
+                ]
+                .concat(),
+                false => [permutation.0, permutation.1].concat(),
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let generated = macro_gen::generate_func_macro(
+        vis.clone(),
+        s_path.clone(),
+        ident.clone(),
+        joined,
+        MacroType::Struct,
+    );
 
     ProcOutput {
         modified: syn::ItemStruct {
@@ -203,11 +290,11 @@ fn item_struct_struct(
             struct_token: Default::default(),
             ident,
             generics,
-            fields: syn::Fields::Named(fields),
+            fields: stripped_fields,
             semi_token: None,
         }
         .to_token_stream(),
-        generated: quote! {},
+        generated,
     }
 }
 

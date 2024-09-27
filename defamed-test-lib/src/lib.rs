@@ -17,6 +17,7 @@ mod tests;
 #[defamed::defamed(crate)]
 pub fn some_root_function<'a>(base: &'a str, #[def] concat: Option<&str>) -> Cow<'a, str> {
     let _ = complex_function!(1, 2);
+    let _ = complex_function!(lhs = 2, rhs = 2);
 
     match concat {
         Some(c) => Cow::Owned(base.to_owned() + c),
@@ -39,15 +40,10 @@ pub mod inner {
 /// Some struct definition
 #[defamed::defamed(crate)]
 pub struct SomeStruct {
-    // #[def]
     pub field: i32,
+    #[def]
+    pub other: i32,
 }
-
-#[defamed::defamed]
-pub struct StructTuple(pub i32, pub i32);
-
-// #[defamed::defamed]
-pub enum ASD {}
 
 #[defamed::defamed]
 fn complex_function(

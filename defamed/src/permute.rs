@@ -1,6 +1,10 @@
 //! Permutation generation for positional and named parameters.
 #![allow(unused)]
 
+use std::fmt::Debug;
+
+use crate::traits::ToMacroPattern;
+
 pub mod fields;
 pub mod params;
 
@@ -17,13 +21,29 @@ pub enum ParamAttr {
 
 /// A single permuted item
 #[derive(Clone)]
-enum PermutedItem<T: Clone> {
+pub enum PermutedItem<T: Clone> {
     /// Item is positional with no identifier
     Positional(T),
     /// Item is named with an identifier
     Named(T),
     /// Item is a default value
     Default(T),
+}
+
+impl<T: Debug + Clone> Debug for PermutedItem<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Positional(arg0) => f.debug_tuple("Positional").field(arg0).finish(),
+            Self::Named(arg0) => f.debug_tuple("Named").field(arg0).finish(),
+            Self::Default(arg0) => f.debug_tuple("Default").field(arg0).finish(),
+        }
+    }
+}
+
+impl<T: Clone + PartialEq> PartialEq for PermutedItem<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.inner() == other.inner()
+    }
 }
 
 impl<T: Clone> PermutedItem<T> {
@@ -54,7 +74,10 @@ impl<T: Clone> PermutedItem<T> {
 /// Generate all permutations of positional items and default items.
 ///
 /// Returns a matrix of tuples of positional and default permutations.
-fn permute<T: Clone>(
+///
+/// The first permutation in the permutation matrix is guraranteed to contain
+/// only [PermutedItem::Named] elements.
+pub fn permute<T: Clone>(
     required: Vec<T>,
     default: Vec<T>,
 ) -> Vec<(Vec<PermutedItem<T>>, Vec<PermutedItem<T>>)> {
@@ -183,7 +206,10 @@ fn permute_named_default<T: Clone>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> 
         })
         .collect::<Vec<_>>();
 
-    res.into_iter().filter(|item| !item.is_empty()).collect()
+    res.into_iter()
+        .rev()
+        .filter(|item| !item.is_empty())
+        .collect()
 }
 
 /// Perform permutations for positional default permutations.
@@ -282,6 +308,22 @@ mod tests {
 
         let permutations = permute(items, vec![]);
 
+        let first_perm = permutations.first().unwrap();
+
+        assert!(
+            first_perm
+                .0
+                .iter()
+                .all(|item| matches!(item, PermutedItem::Named(_))),
+            "first permutation must contain all named parameters"
+        );
+        assert!(
+            first_perm
+                .1
+                .iter()
+                .all(|item| matches!(item, PermutedItem::Named(_))),
+            "first permutation must contain all named parameters"
+        );
         assert_eq!(permutations.len(), 34);
     }
 
@@ -293,6 +335,22 @@ mod tests {
 
         let permutations = permute(items, defaults);
 
+        let first_perm = permutations.first().unwrap();
+
+        assert!(
+            first_perm
+                .0
+                .iter()
+                .all(|item| matches!(item, PermutedItem::Named(_))),
+            "first permutation must contain all named parameters"
+        );
+        assert!(
+            first_perm
+                .1
+                .iter()
+                .all(|item| matches!(item, PermutedItem::Named(_))),
+            "first permutation must contain all named parameters"
+        );
         // 5 permutations for default parameters
         // and 3 additional permutations for positional default parameters (not permuted)
         assert_eq!(permutations.len(), 34 * 5 + 3);
