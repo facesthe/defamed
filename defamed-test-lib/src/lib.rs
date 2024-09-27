@@ -39,10 +39,19 @@ pub mod inner {
 
 /// Some struct definition
 #[defamed::defamed(crate)]
-pub struct SomeStruct {
-    pub field: i32,
+pub struct DefaultStruct<'a> {
+    pub index: usize,
     #[def]
-    pub other: i32,
+    pub offset: usize,
+    #[def((&[]))]
+    pub inner: &'a [u8],
+}
+
+impl<'a> DefaultStruct<'a> {
+    /// Get the value at the index + offset
+    pub fn value_at(&'a self) -> Option<u8> {
+        self.inner.get(self.index + self.offset).cloned()
+    }
 }
 
 #[defamed::defamed]

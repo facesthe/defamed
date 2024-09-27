@@ -125,7 +125,6 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
             );
 
             #[doc(inline)]
-            // #[allow(unused_macros)]
             #[doc = concat!("[`defamed`] wrapper for [`", #item_prefix, stringify!(#item_ident), "`]")]
             #vis use #func_dunder_ident as #item_ident;
 

@@ -22,17 +22,26 @@ fn test_complex_function() {
     assert_eq!(complex_function!(20, 10, false, Some(2)), 5);
 }
 
-#[defamed::defamed(tests)]
-#[derive(Debug)]
-pub struct Thing {
-    pub a: i32,
-    // #[def]
-    pub b: i32,
-}
-
 #[test]
-fn test_thing() {
-    let thing = Thing! {0, 1};
+fn test_default_struct() {
+    let a = DefaultStruct! {
+        index: 0,
+        ..
+    };
 
-    println!("{:?}", thing);
+    let b = DefaultStruct! {
+        index: 1,
+        inner: &[1, 2, 3],
+        ..
+    };
+
+    let c = DefaultStruct! {
+        index: 1,
+        offset: 1,
+        inner: &[1, 2, 3]
+    };
+
+    assert_eq!(a.value_at(), None);
+    assert_eq!(b.value_at(), Some(2));
+    assert_eq!(c.value_at(), Some(3));
 }

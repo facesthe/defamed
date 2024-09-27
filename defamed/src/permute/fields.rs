@@ -150,11 +150,13 @@ impl ToMacroPattern for PermutedItem<StructField> {
                 // asd
                 let pat = syn::Ident::new(&format!("{}_val", ident), ident.span());
 
-                match default_value {
-                    ParamAttr::None => quote! {#ident: $#pat},
-                    ParamAttr::Default => quote! {#ident: core::default::Default::default()},
-                    ParamAttr::Value(expr) => quote! {#ident: #expr},
-                }
+                // match default_value {
+                //     ParamAttr::None => quote! {#ident: $#pat},
+                //     ParamAttr::Default => quote! {#ident: core::default::Default::default()},
+                //     ParamAttr::Value(expr) => quote! {#ident: #expr},
+                // }
+
+                quote!{#ident: $#pat}
             }
             PermutedItem::Named(StructField {
                 vis,
@@ -168,11 +170,13 @@ impl ToMacroPattern for PermutedItem<StructField> {
                 // asd
                 let pat = syn::Ident::new(&format!("{}_val", ident), ident.span());
 
-                match default_value {
-                    ParamAttr::None => quote! {#ident: $#pat},
-                    ParamAttr::Default => quote! {#ident: core::default::Default::default()},
-                    ParamAttr::Value(expr) => quote! {#ident: #expr},
-                }
+                // match default_value {
+                //     ParamAttr::None => quote! {#ident: $#pat},
+                //     ParamAttr::Default => quote! {#ident: core::default::Default::default()},
+                //     ParamAttr::Value(expr) => quote! {#ident: #expr},
+                // }
+
+                quote! {#ident: $#pat}
             }
             PermutedItem::Default(StructField {
                 vis,

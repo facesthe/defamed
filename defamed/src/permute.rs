@@ -324,6 +324,19 @@ mod tests {
                 .all(|item| matches!(item, PermutedItem::Named(_))),
             "first permutation must contain all named parameters"
         );
+        let full_perm = [first_perm.0.clone(), first_perm.1.clone()].concat();
+
+        assert_eq!(
+            full_perm,
+            vec![
+                PermutedItem::Named("a"),
+                PermutedItem::Named("b"),
+                PermutedItem::Named("c"),
+                PermutedItem::Named("d"),
+            ],
+            "first permutation must maintain the initial order"
+        );
+
         assert_eq!(permutations.len(), 34);
     }
 
@@ -351,6 +364,21 @@ mod tests {
                 .all(|item| matches!(item, PermutedItem::Named(_))),
             "first permutation must contain all named parameters"
         );
+
+        let full_perm = [first_perm.0.clone(), first_perm.1.clone()].concat();
+        assert_eq!(
+            full_perm,
+            vec![
+                PermutedItem::Named("a"),
+                PermutedItem::Named("b"),
+                PermutedItem::Named("c"),
+                PermutedItem::Named("d"),
+                PermutedItem::Named("e"),
+                PermutedItem::Named("f"),
+            ],
+            "first permutation must maintain the initial order"
+        );
+
         // 5 permutations for default parameters
         // and 3 additional permutations for positional default parameters (not permuted)
         assert_eq!(permutations.len(), 34 * 5 + 3);
