@@ -76,7 +76,7 @@ impl<T: Clone> PermutedItem<T> {
 /// Returns a matrix of tuples of positional and default permutations.
 ///
 /// The first permutation in the permutation matrix is guraranteed to contain
-/// only [PermutedItem::Named] elements.
+/// only [PermutedItem::Named] elements in the original order (`required`, `default` concatenated).
 pub fn permute<T: Clone>(
     required: Vec<T>,
     default: Vec<T>,
@@ -185,6 +185,7 @@ fn permute_named_default<T: Clone>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> 
                         PermutedItem::Default(item.to_owned())
                     }
                 })
+                .rev()
                 .collect::<Vec<_>>();
 
             seq
@@ -282,6 +283,15 @@ mod tests {
         // 1 1 again because used defaults have to be permuted
         assert_eq!(permutations.len(), 5);
 
+        let first = permutations.first().unwrap();
+        assert!(first
+            .iter()
+            .all(|item| matches!(item, PermutedItem::Named(_))));
+        assert_eq!(
+            *first,
+            vec![PermutedItem::Named("a"), PermutedItem::Named("b"),]
+        );
+
         items.clear();
         let permutations = permute_pos_default(&items);
         assert!(permutations.is_empty());
@@ -299,6 +309,20 @@ mod tests {
         // 1 0
         // 1 1
         assert_eq!(permutations.len(), 8);
+        let first = permutations.first().unwrap();
+
+        assert!(matches!(first[0], PermutedItem::Positional(_)));
+        assert!(matches!(first[1], PermutedItem::Named(_)));
+        assert!(matches!(first[2], PermutedItem::Named(_)));
+
+        assert_eq!(
+            *first,
+            vec![
+                PermutedItem::Positional("a"),
+                PermutedItem::Named("b"),
+                PermutedItem::Named("c")
+            ]
+        );
     }
 
     /// Full permutation test without any default parameters
