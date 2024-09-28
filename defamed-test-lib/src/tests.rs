@@ -45,3 +45,14 @@ fn test_default_struct() {
     assert_eq!(b.value_at(), Some(2));
     assert_eq!(c.value_at(), Some(3));
 }
+
+#[test]
+fn test_default_tuple_struct() {
+    let a = DefaultTupleStruct!(1);
+    let b = DefaultTupleStruct!(1, 2);
+    let c = DefaultTupleStruct!(2, 4, 'f');
+
+    assert_eq!(a, DefaultTupleStruct(1, 0, 'a'));
+    assert_eq!(b, DefaultTupleStruct(1, 2, 'a'));
+    assert_eq!(c, DefaultTupleStruct(2, 4, 'f'));
+}

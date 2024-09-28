@@ -332,6 +332,95 @@ fn item_struct_tuple(
     generics: syn::Generics,
     fields: syn::FieldsUnnamed,
 ) -> ProcOutput {
+    match (&vis, s_path.as_ref()) {
+        (syn::Visibility::Restricted(syn::VisRestricted { path, .. }), p) => {
+            if !fields.unnamed.iter().all(|f| {
+                matches!(
+                    f.vis,
+                    syn::Visibility::Public(_) | syn::Visibility::Restricted(_)
+                )
+            }) {
+                return syn::Error::new(
+                    ident.span(),
+                    "Non-private struct tuples must have non-private items",
+                )
+                .to_compile_error()
+                .into();
+            }
+
+            if matches!(p, None) {
+                if !path.is_ident("self") {
+                    return syn::Error::new(
+                        ident.span(),
+                        "Attribute requires a path to the struct tuple for public structs",
+                    )
+                    .to_compile_error()
+                    .into();
+                }
+            }
+        }
+        (syn::Visibility::Public(_), p) => {
+            if !fields
+                .unnamed
+                .iter()
+                .all(|f| matches!(f.vis, syn::Visibility::Public(_)))
+            {
+                return syn::Error::new(
+                    ident.span(),
+                    "Public struct tuples must have public items",
+                )
+                .to_compile_error()
+                .into();
+            }
+
+            if matches!(p, None) {
+                return syn::Error::new(
+                    ident.span(),
+                    "Attribute requires a path to the struct for public struct tuples",
+                )
+                .to_compile_error()
+                .into();
+            }
+        }
+        (syn::Visibility::Inherited, _) => (),
+    }
+
+    let un_fields = match StructFields::from_unnamed(ident.clone(), fields.unnamed.clone()) {
+        Ok(un) => un,
+        Err(e) => return e.to_compile_error().into(),
+    };
+
+    let stripped_fields = un_fields.strip_attributes();
+    let fields_inner = un_fields.fields;
+
+    let (positional, defaults) = {
+        let partition = fields_inner.iter().enumerate().find_map(|(idx, f)| {
+            if matches!(f.default_value, ParamAttr::Default | ParamAttr::Value(_)) {
+                Some(idx)
+            } else {
+                None
+            }
+        });
+
+        match partition {
+            Some(p) => {
+                let tup = fields_inner.split_at(p);
+                (tup.0.to_vec(), tup.1.to_vec())
+            }
+            None => (fields_inner, vec![]),
+        }
+    };
+
+    let permuted = crate::permute::permute_tuple_struct(positional, defaults);
+
+    let generated = macro_gen::generate_func_macro(
+        vis.clone(),
+        s_path.clone(),
+        ident.clone(),
+        permuted,
+        MacroType::StructTuple,
+    );
+
     ProcOutput {
         modified: syn::ItemStruct {
             attrs,
@@ -339,11 +428,11 @@ fn item_struct_tuple(
             struct_token: Default::default(),
             ident,
             generics,
-            fields: syn::Fields::Unnamed(fields),
+            fields: stripped_fields,
             semi_token: None,
         }
         .to_token_stream(),
-        generated: quote! {},
+        generated,
     }
 }
 

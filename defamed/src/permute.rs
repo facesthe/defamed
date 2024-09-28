@@ -13,9 +13,9 @@ pub mod params;
 pub enum ParamAttr {
     /// No helper attribute
     None,
-    // Use default trait for initialization
+    /// Use default trait for initialization
     Default,
-    // Use const expr for initialization
+    /// Use const expr for initialization
     Value(syn::Expr),
 }
 
@@ -154,6 +154,41 @@ pub fn permute<T: Clone>(
     [named_pos, all_positional].concat()
 }
 
+/// Special permutation case for tuple structs.
+///
+/// Tuple structs elements are positional only.
+/// Default parameters are permuted as positionals.
+pub fn permute_tuple_struct<T: Clone>(
+    required: Vec<T>,
+    default: Vec<T>,
+) -> Vec<Vec<PermutedItem<T>>> {
+    let positionals = required
+        .into_iter()
+        .map(|f| PermutedItem::Positional(f))
+        .collect::<Vec<_>>();
+
+    let res = (0..default.len() + 1)
+        .into_iter()
+        .map(|default_idx| {
+            let (def_pos, def_unused) = default.split_at(default_idx);
+            let def_pos_perm = def_pos
+                .iter()
+                .cloned()
+                .map(|f| PermutedItem::Positional(f))
+                .collect::<Vec<_>>();
+            let def_unused_perm = def_unused
+                .iter()
+                .cloned()
+                .map(|f| PermutedItem::Default(f))
+                .collect::<Vec<_>>();
+
+            [positionals.clone(), def_pos_perm, def_unused_perm].concat()
+        })
+        .collect::<Vec<_>>();
+
+    res
+}
+
 /// Perform permutations of all items in a slice.
 /// All items will be wrapped in [PermutedItem::Named].
 fn permute_named<T: Clone>(named: &[T]) -> Vec<Vec<PermutedItem<T>>> {
@@ -255,6 +290,32 @@ fn permute_pos_default<T: Clone>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> {
 mod tests {
 
     use super::*;
+
+    #[test]
+    fn test_permute_tuple_struct() {
+        fn assert_positional_default_split_at<T: Clone>(
+            permutation: &[PermutedItem<T>],
+            split: usize,
+        ) {
+            let (positional, default) = permutation.split_at(split);
+            assert!(positional
+                .iter()
+                .all(|f| matches!(f, PermutedItem::Positional(_))));
+            assert!(default
+                .iter()
+                .all(|f| matches!(f, PermutedItem::Default(_))));
+        }
+
+        let positional = vec!["a", "b"];
+        let defaults = vec!["c", "d"];
+
+        let permutations = permute_tuple_struct(positional, defaults);
+
+        assert_eq!(permutations.len(), 3);
+        assert_positional_default_split_at(&permutations[0], 2);
+        assert_positional_default_split_at(&permutations[1], 3);
+        assert_positional_default_split_at(&permutations[2], 4);
+    }
 
     /// Test only named parameters
     #[test]

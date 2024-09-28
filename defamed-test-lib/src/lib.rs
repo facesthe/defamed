@@ -54,6 +54,11 @@ impl<'a> DefaultStruct<'a> {
     }
 }
 
+/// Some struct tuple definition
+#[defamed::defamed(crate)]
+#[derive(Clone, Debug, PartialEq)]
+pub struct DefaultTupleStruct(pub usize, #[def] pub usize, #[def('a')] pub char);
+
 #[defamed::defamed]
 fn complex_function(
     lhs: i32,

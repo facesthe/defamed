@@ -13,7 +13,10 @@ use crate::traits::{ToDocInfo, ToMacroPattern};
 #[derive(Clone, Copy, Debug)]
 pub enum MacroType {
     Function,
+    /// Struct with named fields
     Struct,
+    /// Tuple struct with unnamed fields
+    StructTuple,
     // Enum,
 }
 
@@ -23,6 +26,7 @@ impl ToString for MacroType {
         match self {
             MacroType::Function => "fn@".to_string(),
             MacroType::Struct => "struct@".to_string(),
+            MacroType::StructTuple => "struct@".to_string(),
         }
     }
 }
@@ -66,7 +70,7 @@ pub fn generate_func_macro<P: ToMacroPattern + ToDocInfo + Clone + PartialEq>(
             let func_signature = create_func_call_signature(first_ref.as_slice(), &p);
 
             match output {
-                MacroType::Function => quote! {
+                MacroType::Function | MacroType::StructTuple => quote! {
                     (#macro_signature) => {
                         #func_path_root #item_ident(#func_signature)
                     }
