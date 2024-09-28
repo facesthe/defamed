@@ -1,9 +1,9 @@
 //! Permutation generation for positional and named parameters.
-#![allow(unused)]
+// #![allow(unused)]
 
 use std::fmt::Debug;
 
-use crate::traits::ToMacroPattern;
+use crate::traits::ToDocInfo;
 
 pub mod fields;
 pub mod params;
@@ -43,6 +43,12 @@ impl<T: Debug + Clone> Debug for PermutedItem<T> {
 impl<T: Clone + PartialEq> PartialEq for PermutedItem<T> {
     fn eq(&self, other: &Self) -> bool {
         self.inner() == other.inner()
+    }
+}
+
+impl<T: Clone + ToDocInfo> ToDocInfo for PermutedItem<T> {
+    fn to_doc_info(&self) -> crate::traits::DocInfo {
+        self.inner().to_doc_info()
     }
 }
 

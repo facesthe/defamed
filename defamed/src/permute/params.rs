@@ -4,17 +4,17 @@ use core::panic;
 use std::fmt::Debug;
 
 use quote::{quote, ToTokens};
-use syn::{punctuated::Punctuated, spanned::Spanned};
+use syn::spanned::Spanned;
 
-use crate::traits::ToMacroPattern;
+use crate::traits::{ToDocInfo, ToMacroPattern};
 
-use super::ParamAttr;
+use super::{ParamAttr, PermutedItem};
 
 /// Parsed function parameters
 #[derive(Clone)]
 pub struct FunctionParams {
     receiver: FnReceiver,
-    params: Vec<FunctionParam>,
+    pub params: Vec<FunctionParam>,
 }
 
 /// Default function parameter
@@ -25,7 +25,7 @@ pub struct FunctionParam {
     ty: syn::Type,
     attrs: Vec<syn::Attribute>,
     /// A const that can be used as a default value
-    default_value: ParamAttr,
+    pub default_value: ParamAttr,
 }
 
 /// Function parameter receiver
@@ -44,16 +44,16 @@ pub enum FnReceiver {
 }
 
 /// Permutation of positional and named parameters
-#[derive(Clone)]
-pub enum PermutedParam {
-    Positional(FunctionParam),
-    Named(FunctionParam),
+// #[derive(Clone)]
+// pub enum PermutedParam {
+//     Positional(FunctionParam),
+//     Named(FunctionParam),
 
-    // default parameter that is passed as an argument
-    DefaultUsed(FunctionParam),
-    // default parameter that is left blank
-    DefaultUnused(FunctionParam),
-}
+//     // default parameter that is passed as an argument
+//     DefaultUsed(FunctionParam),
+//     // default parameter that is left blank
+//     DefaultUnused(FunctionParam),
+// }
 
 impl Debug for FunctionParam {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -75,53 +75,55 @@ impl Debug for ParamAttr {
     }
 }
 
-impl Debug for PermutedParam {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Positional(arg0) => f.debug_tuple("Positional").field(arg0).finish(),
-            Self::Named(arg0) => f.debug_tuple("Named").field(arg0).finish(),
-            Self::DefaultUsed(arg0) => f.debug_tuple("DefaultUsed").field(arg0).finish(),
-            Self::DefaultUnused(arg0) => f.debug_tuple("DefaultUnused").field(arg0).finish(),
-        }
-    }
-}
+// impl Debug for PermutedParam {
+//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+//         match self {
+//             Self::Positional(arg0) => f.debug_tuple("Positional").field(arg0).finish(),
+//             Self::Named(arg0) => f.debug_tuple("Named").field(arg0).finish(),
+//             Self::DefaultUsed(arg0) => f.debug_tuple("DefaultUsed").field(arg0).finish(),
+//             Self::DefaultUnused(arg0) => f.debug_tuple("DefaultUnused").field(arg0).finish(),
+//         }
+//     }
+// }
 
-impl ToMacroPattern for PermutedParam {
-    fn to_macro_pattern(&self) -> Option<proc_macro2::TokenStream> {
-        match self {
-            PermutedParam::Positional(inner) => {
-                let pat = &inner.pat;
-                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
-                Some(quote! {$#val: expr})
-            }
-            PermutedParam::Named(inner) | PermutedParam::DefaultUsed(inner) => {
-                let pat = &inner.pat;
-                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
-                Some(quote! {#pat = $#val: expr})
-            }
-            PermutedParam::DefaultUnused(_) => None,
-        }
-    }
+// impl ToMacroPattern for PermutedParam {
+//     fn to_macro_pattern(&self) -> Option<proc_macro2::TokenStream> {
+//         match self {
+//             PermutedParam::Positional(inner) => {
+//                 let pat = &inner.pat;
+//                 let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
+//                 Some(quote! {$#val: expr})
+//             }
+//             PermutedParam::Named(inner) | PermutedParam::DefaultUsed(inner) => {
+//                 let pat = &inner.pat;
+//                 let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
+//                 Some(quote! {#pat = $#val: expr})
+//             }
+//             PermutedParam::DefaultUnused(_) => None,
+//         }
+//     }
 
-    fn to_func_call_pattern(&self) -> proc_macro2::TokenStream {
-        match self {
-            PermutedParam::Positional(inner)
-            | PermutedParam::Named(inner)
-            | PermutedParam::DefaultUsed(inner) => {
-                let pat = &inner.pat;
-                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
+//     fn to_func_call_pattern(&self) -> proc_macro2::TokenStream {
+//         match self {
+//             PermutedParam::Positional(inner)
+//             | PermutedParam::Named(inner)
+//             | PermutedParam::DefaultUsed(inner) => {
+//                 let pat = &inner.pat;
+//                 let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
 
-                quote! {$#val}
-            }
+//                 quote! {$#val}
+//             }
 
-            PermutedParam::DefaultUnused(inner) => match &inner.default_value {
-                ParamAttr::None => unimplemented!("invalid inner value"),
-                ParamAttr::Default => quote! {core::default::Default::default()},
-                ParamAttr::Value(v) => quote! {#v},
-            },
-        }
-    }
-}
+//             PermutedParam::DefaultUnused(inner) => match &inner.default_value {
+//                 ParamAttr::None => unimplemented!("invalid inner value"),
+//                 ParamAttr::Default => quote! {core::default::Default::default()},
+//                 ParamAttr::Value(v) => quote! {#v},
+//             },
+//         }
+//     }
+// }
+
+// impl ToDocInfo for
 
 // simple string matching
 impl PartialEq for FunctionParam {
@@ -131,26 +133,77 @@ impl PartialEq for FunctionParam {
     }
 }
 
-/// Compares the inner values, since they are all the same type
-impl PartialEq for PermutedParam {
-    fn eq(&self, other: &Self) -> bool {
-        let inner = match self {
-            Self::Positional(_i) => _i,
-            Self::Named(_i) => _i,
-            Self::DefaultUsed(_i) => _i,
-            Self::DefaultUnused(_i) => _i,
-        };
+impl ToMacroPattern for PermutedItem<FunctionParam> {
+    fn to_macro_pattern(&self) -> Option<proc_macro2::TokenStream> {
+        match self {
+            PermutedItem::Positional(FunctionParam { pat, .. }) => {
+                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
+                Some(quote! {$#val: expr})
+            }
+            PermutedItem::Named(FunctionParam { pat, .. }) => {
+                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
+                Some(quote! {#pat = $#val: expr})
+            }
+            PermutedItem::Default(_) => None,
+        }
+    }
 
-        let othr = match other {
-            Self::Positional(_i) => _i,
-            Self::Named(_i) => _i,
-            Self::DefaultUsed(_i) => _i,
-            Self::DefaultUnused(_i) => _i,
-        };
+    fn to_func_call_pattern(&self) -> proc_macro2::TokenStream {
+        match self {
+            PermutedItem::Positional(FunctionParam { pat, .. })
+            | PermutedItem::Named(FunctionParam { pat, .. }) => {
+                let val = syn::Ident::new(&format!("{}_val", pat.to_token_stream()), pat.span());
+                quote! {$#val}
+            }
+            // PermutedItem::Named(FunctionParam { pat, .. }) =>{
 
-        inner == othr
+            // },
+            PermutedItem::Default(FunctionParam { default_value, .. }) => {
+                //
+                match default_value {
+                    ParamAttr::None => unimplemented!("default value must be present"),
+                    ParamAttr::Default => quote! {core::default::Default::default()},
+                    ParamAttr::Value(v) => quote! {#v},
+                }
+            }
+        }
     }
 }
+
+impl ToDocInfo for FunctionParam {
+    fn to_doc_info(&self) -> crate::traits::DocInfo {
+        crate::traits::DocInfo {
+            ident: self.pat.to_token_stream().to_string(),
+            ty: self.ty.to_token_stream().to_string(),
+            default_value: match &self.default_value {
+                ParamAttr::None => None,
+                ParamAttr::Default => Some("Default::default()".to_string()),
+                ParamAttr::Value(expr) => Some(expr.to_token_stream().to_string()),
+            },
+        }
+    }
+}
+
+// /// Compares the inner values, since they are all the same type
+// impl PartialEq for PermutedParam {
+//     fn eq(&self, other: &Self) -> bool {
+//         let inner = match self {
+//             Self::Positional(_i) => _i,
+//             Self::Named(_i) => _i,
+//             Self::DefaultUsed(_i) => _i,
+//             Self::DefaultUnused(_i) => _i,
+//         };
+
+//         let othr = match other {
+//             Self::Positional(_i) => _i,
+//             Self::Named(_i) => _i,
+//             Self::DefaultUsed(_i) => _i,
+//             Self::DefaultUnused(_i) => _i,
+//         };
+
+//         inner == othr
+//     }
+// }
 
 impl FunctionParams {
     pub fn from_punctuated(
@@ -299,206 +352,206 @@ impl FunctionParams {
         }
     }
 
-    /// Generate all permutations of positional and named parameters.
-    ///
-    /// The following rules are followed:
-    /// - Positional parameters come first
-    /// - Remaining named parameters come after positional parameters, in all possible permutations
-    /// - Default used parameters are next, in all possible permutations
-    /// - Default unused parameters are last, without permutations
-    /// - Positional default parameters are really last, like for real
-    pub fn permute_params(&self) -> Vec<Vec<PermutedParam>> {
-        let required_params = self
-            .params
-            .iter()
-            .take_while(|p| matches!(p.default_value, ParamAttr::None))
-            .cloned()
-            .collect::<Vec<_>>();
+    // /// Generate all permutations of positional and named parameters.
+    // ///
+    // /// The following rules are followed:
+    // /// - Positional parameters come first
+    // /// - Remaining named parameters come after positional parameters, in all possible permutations
+    // /// - Default used parameters are next, in all possible permutations
+    // /// - Default unused parameters are last, without permutations
+    // /// - Positional default parameters are really last, like for real
+    // pub fn permute_params(&self) -> Vec<Vec<PermutedParam>> {
+    //     let required_params = self
+    //         .params
+    //         .iter()
+    //         .take_while(|p| matches!(p.default_value, ParamAttr::None))
+    //         .cloned()
+    //         .collect::<Vec<_>>();
 
-        let default_params = self
-            .params
-            .iter()
-            .skip(required_params.len())
-            .cloned()
-            .collect::<Vec<_>>();
+    //     let default_params = self
+    //         .params
+    //         .iter()
+    //         .skip(required_params.len())
+    //         .cloned()
+    //         .collect::<Vec<_>>();
 
-        let named_permute = (0..=required_params.len())
-            .flat_map(|idx| {
-                // let opp_idx = required_params.len() - i;
-                let (positional, named) = required_params.split_at(idx);
+    //     let named_permute = (0..=required_params.len())
+    //         .flat_map(|idx| {
+    //             // let opp_idx = required_params.len() - i;
+    //             let (positional, named) = required_params.split_at(idx);
 
-                let positional = positional
-                    .iter()
-                    .map(|p| PermutedParam::Positional(p.to_owned()))
-                    .collect::<Vec<_>>();
-                let permute_slice = Self::permute_named(named);
+    //             let positional = positional
+    //                 .iter()
+    //                 .map(|p| PermutedParam::Positional(p.to_owned()))
+    //                 .collect::<Vec<_>>();
+    //             let permute_slice = Self::permute_named(named);
 
-                permute_slice
-                    .iter()
-                    .map(|named_seq| [positional.as_slice(), named_seq.as_slice()].concat())
-                    .collect::<Vec<_>>()
-                    .into_iter()
-            })
-            .collect::<Vec<_>>();
+    //             permute_slice
+    //                 .iter()
+    //                 .map(|named_seq| [positional.as_slice(), named_seq.as_slice()].concat())
+    //                 .collect::<Vec<_>>()
+    //                 .into_iter()
+    //         })
+    //         .collect::<Vec<_>>();
 
-        let default_permute = Self::permute_default(&default_params);
-        let default_positional_permute = Self::permute_positional_default(&default_params);
+    //     let default_permute = Self::permute_default(&default_params);
+    //     let default_positional_permute = Self::permute_positional_default(&default_params);
 
-        // last element in named permutation matrix contains all positional parameters
-        let all_positional = match named_permute.last() {
-            Some(base) => {
-                // sanity check
-                assert!(base
-                    .iter()
-                    .all(|item| matches!(item, PermutedParam::Positional(_))));
+    //     // last element in named permutation matrix contains all positional parameters
+    //     let all_positional = match named_permute.last() {
+    //         Some(base) => {
+    //             // sanity check
+    //             assert!(base
+    //                 .iter()
+    //                 .all(|item| matches!(item, PermutedParam::Positional(_))));
 
-                default_positional_permute
-                    .into_iter()
-                    .map(|seq| [base.as_slice(), seq.as_slice()].concat())
-                    .collect()
-            }
-            None => default_positional_permute,
-        };
+    //             default_positional_permute
+    //                 .into_iter()
+    //                 .map(|seq| [base.as_slice(), seq.as_slice()].concat())
+    //                 .collect()
+    //         }
+    //         None => default_positional_permute,
+    //     };
 
-        let inter = match (named_permute.len(), default_permute.len()) {
-            (0, 0) => vec![],
-            (0, _) => default_permute,
-            (_, 0) => named_permute,
-            (_, _) => named_permute
-                .iter()
-                .flat_map(|np| {
-                    default_permute
-                        .iter()
-                        .map(|dp| [np.as_slice(), dp.as_slice()].concat())
-                        .collect::<Vec<_>>()
-                })
-                .collect::<Vec<_>>(),
-        };
+    //     let inter = match (named_permute.len(), default_permute.len()) {
+    //         (0, 0) => vec![],
+    //         (0, _) => default_permute,
+    //         (_, 0) => named_permute,
+    //         (_, _) => named_permute
+    //             .iter()
+    //             .flat_map(|np| {
+    //                 default_permute
+    //                     .iter()
+    //                     .map(|dp| [np.as_slice(), dp.as_slice()].concat())
+    //                     .collect::<Vec<_>>()
+    //             })
+    //             .collect::<Vec<_>>(),
+    //     };
 
-        match (inter.len(), all_positional.len()) {
-            (0, 0) => vec![],
-            (0, _) => all_positional,
-            (_, 0) => inter,
-            (_, _) => [inter, all_positional].concat(),
-        }
-    }
+    //     match (inter.len(), all_positional.len()) {
+    //         (0, 0) => vec![],
+    //         (0, _) => all_positional,
+    //         (_, 0) => inter,
+    //         (_, _) => [inter, all_positional].concat(),
+    //     }
+    // }
 
-    /// Perform permutation of all items in slice.
-    /// All items will be of the [PermutedParam::Named] variant
-    fn permute_named(named: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
-        if !named
-            .iter()
-            .all(|n| matches!(n.default_value, ParamAttr::None))
-        {
-            panic!("All items in slice must not have default values");
-        }
+    // /// Perform permutation of all items in slice.
+    // /// All items will be of the [PermutedParam::Named] variant
+    // fn permute_named(named: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
+    //     if !named
+    //         .iter()
+    //         .all(|n| matches!(n.default_value, ParamAttr::None))
+    //     {
+    //         panic!("All items in slice must not have default values");
+    //     }
 
-        let permutations = permute::permutations_of(named);
+    //     let permutations = permute::permutations_of(named);
 
-        permutations
-            .into_iter()
-            .map(|single_perm| {
-                single_perm
-                    .into_iter()
-                    .map(|item| PermutedParam::Named(item.to_owned()))
-                    .collect::<Vec<_>>()
-            })
-            .collect::<Vec<_>>()
-    }
+    //     permutations
+    //         .into_iter()
+    //         .map(|single_perm| {
+    //             single_perm
+    //                 .into_iter()
+    //                 .map(|item| PermutedParam::Named(item.to_owned()))
+    //                 .collect::<Vec<_>>()
+    //         })
+    //         .collect::<Vec<_>>()
+    // }
 
-    /// Perform permutations for default parameters. All permuted values are named.
-    ///
-    /// Each item in the slice must have a default value.
-    /// Additionally, default params can be used or unused. These are also permuted as well.
-    fn permute_default(defaults: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
-        if !defaults
-            .iter()
-            .all(|n| !matches!(n.default_value, ParamAttr::None))
-        {
-            panic!("All items in slice must have default values");
-        }
+    // /// Perform permutations for default parameters. All permuted values are named.
+    // ///
+    // /// Each item in the slice must have a default value.
+    // /// Additionally, default params can be used or unused. These are also permuted as well.
+    // fn permute_default(defaults: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
+    //     if !defaults
+    //         .iter()
+    //         .all(|n| !matches!(n.default_value, ParamAttr::None))
+    //     {
+    //         panic!("All items in slice must have default values");
+    //     }
 
-        let base_permute = (0..(1 << defaults.len()))
-            .map(|num| {
-                let seq = defaults
-                    .iter()
-                    .enumerate()
-                    .map(|(pos, item)| {
-                        // if bit set, it is used
-                        if (num >> pos) & 1 != 0 {
-                            PermutedParam::DefaultUsed(item.to_owned())
-                        } else {
-                            PermutedParam::DefaultUnused(item.to_owned())
-                        }
-                    })
-                    .collect::<Vec<_>>();
+    //     let base_permute = (0..(1 << defaults.len()))
+    //         .map(|num| {
+    //             let seq = defaults
+    //                 .iter()
+    //                 .enumerate()
+    //                 .map(|(pos, item)| {
+    //                     // if bit set, it is used
+    //                     if (num >> pos) & 1 != 0 {
+    //                         PermutedParam::DefaultUsed(item.to_owned())
+    //                     } else {
+    //                         PermutedParam::DefaultUnused(item.to_owned())
+    //                     }
+    //                 })
+    //                 .collect::<Vec<_>>();
 
-                seq
-            })
-            .collect::<Vec<_>>();
+    //             seq
+    //         })
+    //         .collect::<Vec<_>>();
 
-        let res = base_permute
-            .into_iter()
-            .flat_map(|seq| {
-                let (used, unused) = Self::split_defaults(seq);
+    //     let res = base_permute
+    //         .into_iter()
+    //         .flat_map(|seq| {
+    //             let (used, unused) = Self::split_defaults(seq);
 
-                let mut used_permute = permute::permute(used);
+    //             let mut used_permute = permute::permute(used);
 
-                for item in &mut used_permute {
-                    item.extend_from_slice(&unused);
-                }
+    //             for item in &mut used_permute {
+    //                 item.extend_from_slice(&unused);
+    //             }
 
-                used_permute.into_iter()
-            })
-            .collect::<Vec<_>>();
+    //             used_permute.into_iter()
+    //         })
+    //         .collect::<Vec<_>>();
 
-        res.into_iter().filter(|item| !item.is_empty()).collect()
+    //     res.into_iter().filter(|item| !item.is_empty()).collect()
 
-        // res
-    }
+    //     // res
+    // }
 
-    /// Permute positional parameters for default values.
-    ///
-    /// This extends the special case where all preceding (non default) parameters
-    /// are used as positional parameters.
-    fn permute_positional_default(defaults: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
-        let res = (1..=defaults.len())
-            .flat_map(|idx| {
-                let (positional, named) = defaults.split_at(idx);
-                let pos_params = positional
-                    .iter()
-                    .map(|p| PermutedParam::Positional(p.to_owned()))
-                    .collect::<Vec<_>>();
+    // /// Permute positional parameters for default values.
+    // ///
+    // /// This extends the special case where all preceding (non default) parameters
+    // /// are used as positional parameters.
+    // fn permute_positional_default(defaults: &[FunctionParam]) -> Vec<Vec<PermutedParam>> {
+    //     let res = (1..=defaults.len())
+    //         .flat_map(|idx| {
+    //             let (positional, named) = defaults.split_at(idx);
+    //             let pos_params = positional
+    //                 .iter()
+    //                 .map(|p| PermutedParam::Positional(p.to_owned()))
+    //                 .collect::<Vec<_>>();
 
-                let inter = match named.len() {
-                    0 => vec![pos_params],
-                    _ => {
-                        let named_permute = Self::permute_default(named);
+    //             let inter = match named.len() {
+    //                 0 => vec![pos_params],
+    //                 _ => {
+    //                     let named_permute = Self::permute_default(named);
 
-                        named_permute
-                            .into_iter()
-                            .map(move |named_seq| [pos_params.clone(), named_seq].concat())
-                            .collect::<Vec<_>>()
-                    }
-                };
+    //                     named_permute
+    //                         .into_iter()
+    //                         .map(move |named_seq| [pos_params.clone(), named_seq].concat())
+    //                         .collect::<Vec<_>>()
+    //                 }
+    //             };
 
-                inter.into_iter()
-            })
-            .collect::<Vec<_>>();
+    //             inter.into_iter()
+    //         })
+    //         .collect::<Vec<_>>();
 
-        res
-    }
+    //     res
+    // }
 
-    /// Split the default parameters into default(used) and default(unused) parameters.
-    fn split_defaults(defaults: Vec<PermutedParam>) -> (Vec<PermutedParam>, Vec<PermutedParam>) {
-        let res: (Vec<_>, Vec<_>) = defaults.into_iter().partition(|def| match def {
-            PermutedParam::DefaultUsed(_) => true,
-            PermutedParam::DefaultUnused(_) => false,
-            _ => panic!("unexpected variant"),
-        });
+    // /// Split the default parameters into default(used) and default(unused) parameters.
+    // fn split_defaults(defaults: Vec<PermutedParam>) -> (Vec<PermutedParam>, Vec<PermutedParam>) {
+    //     let res: (Vec<_>, Vec<_>) = defaults.into_iter().partition(|def| match def {
+    //         PermutedParam::DefaultUsed(_) => true,
+    //         PermutedParam::DefaultUnused(_) => false,
+    //         _ => panic!("unexpected variant"),
+    //     });
 
-        res
-    }
+    //     res
+    // }
 }
 
 impl FunctionParam {

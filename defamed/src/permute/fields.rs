@@ -5,7 +5,9 @@ use quote::ToTokens;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 
+use crate::traits::DocInfo;
 use crate::traits::StripAttributes;
+use crate::traits::ToDocInfo;
 use crate::traits::ToMacroPattern;
 
 use super::{ParamAttr, PermutedItem};
@@ -13,7 +15,7 @@ use super::{ParamAttr, PermutedItem};
 /// Parsed struct fields
 #[derive(Clone, Debug)]
 pub struct StructFields {
-    ident: syn::Ident,
+    pub ident: syn::Ident,
     pub fields: Vec<StructField>,
 }
 
@@ -87,28 +89,12 @@ impl ToMacroPattern for PermutedItem<StructField> {
         }
 
         match self {
-            Self::Positional(StructField {
-                vis,
-                ident,
-                is_tuple,
-                ty,
-                default_value,
-                dot_dot,
-                ..
-            }) => {
+            Self::Positional(StructField { ident, .. }) => {
                 let pat = syn::Ident::new(&format!("{}_val", ident), ident.span());
                 Some(quote! {$#pat: expr})
             }
 
-            Self::Named(StructField {
-                vis,
-                ident,
-                is_tuple,
-                ty,
-                default_value,
-                dot_dot,
-                ..
-            }) => {
+            Self::Named(StructField { ident, .. }) => {
                 // asd
 
                 let pat = syn::Ident::new(&format!("{}_val", ident), ident.span());
@@ -116,18 +102,9 @@ impl ToMacroPattern for PermutedItem<StructField> {
                 Some(quote! {#ident: $#pat: expr})
             }
 
-            Self::Default(StructField {
-                vis,
-                ident,
-                is_tuple,
-                ty,
-                default_value,
-                dot_dot,
-                ..
-            }) => match default_value {
+            Self::Default(StructField { default_value, .. }) => match default_value {
                 ParamAttr::None => unimplemented!("default value must be present"),
-                ParamAttr::Default => None,
-                ParamAttr::Value(expr) => None,
+                ParamAttr::Default | ParamAttr::Value(_) => None,
             },
         }
     }
@@ -138,15 +115,7 @@ impl ToMacroPattern for PermutedItem<StructField> {
         }
 
         match self {
-            PermutedItem::Positional(StructField {
-                vis,
-                ident,
-                is_tuple,
-                ty,
-                default_value,
-                dot_dot,
-                ..
-            }) => {
+            PermutedItem::Positional(StructField { ident, .. }) => {
                 // asd
                 let pat = syn::Ident::new(&format!("{}_val", ident), ident.span());
 
@@ -158,15 +127,7 @@ impl ToMacroPattern for PermutedItem<StructField> {
 
                 quote! {#ident: $#pat}
             }
-            PermutedItem::Named(StructField {
-                vis,
-                ident,
-                is_tuple,
-                ty,
-                default_value,
-                dot_dot,
-                ..
-            }) => {
+            PermutedItem::Named(StructField { ident, .. }) => {
                 // asd
                 let pat = syn::Ident::new(&format!("{}_val", ident), ident.span());
 
@@ -179,12 +140,8 @@ impl ToMacroPattern for PermutedItem<StructField> {
                 quote! {#ident: $#pat}
             }
             PermutedItem::Default(StructField {
-                vis,
                 ident,
-                is_tuple,
-                ty,
                 default_value,
-                dot_dot,
                 ..
             }) => match default_value {
                 ParamAttr::None => unimplemented!("default value must be present"),
@@ -233,6 +190,20 @@ impl StripAttributes for StructFields {
                 brace_token: Default::default(),
                 named: fields,
             }),
+        }
+    }
+}
+
+impl ToDocInfo for StructField {
+    fn to_doc_info(&self) -> DocInfo {
+        DocInfo {
+            ident: self.ident.to_string(),
+            ty: self.ty.to_token_stream().to_string(),
+            default_value: match &self.default_value {
+                ParamAttr::None => None,
+                ParamAttr::Default => Some("Default::default()".to_string()),
+                ParamAttr::Value(expr) => Some(expr.to_token_stream().to_string()),
+            },
         }
     }
 }

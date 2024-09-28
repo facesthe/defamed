@@ -95,7 +95,32 @@ pub fn item_fn(input: syn::ItemFn, fn_path: Option<syn::Path>) -> ProcOutput {
         .into();
     }
 
-    let permuted = params.permute_params();
+    let params_inner = params.params.clone();
+    let (positional, default) = {
+        let partition = params_inner.iter().enumerate().find_map(|(idx, f)| {
+            if matches!(f.default_value, ParamAttr::Default | ParamAttr::Value(_)) {
+                Some(idx)
+            } else {
+                None
+            }
+        });
+
+        match partition {
+            Some(p) => {
+                let tup = params_inner.split_at(p);
+                (tup.0.to_vec(), tup.1.to_vec())
+            }
+            None => (params_inner, vec![]),
+        }
+    };
+
+    let permuted_new = crate::permute::permute(positional, default);
+    let permuted_concat = permuted_new
+        .into_iter()
+        .map(|permutation| [permutation.0, permutation.1].concat())
+        .collect::<Vec<_>>();
+
+    // let permuted = params.permute_params();
     let new_args = params.to_punctuated();
     let mut new_sig = sig.clone();
     new_sig.inputs = new_args;
@@ -112,7 +137,7 @@ pub fn item_fn(input: syn::ItemFn, fn_path: Option<syn::Path>) -> ProcOutput {
         // package_name,
         fn_path,
         new_sig.ident.clone(),
-        permuted,
+        permuted_concat,
         macro_gen::MacroType::Function,
     );
 

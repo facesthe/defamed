@@ -8,7 +8,7 @@ use syn::{
     Visibility,
 };
 
-use crate::traits::ToMacroPattern;
+use crate::traits::{ToDocInfo, ToMacroPattern};
 
 #[derive(Clone, Copy, Debug)]
 pub enum MacroType {
@@ -32,7 +32,7 @@ impl ToString for MacroType {
 ///
 /// This macro generates code that calls the actual function,
 /// while reorderng and substituting parameters as needed.
-pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
+pub fn generate_func_macro<P: ToMacroPattern + ToDocInfo + Clone + PartialEq>(
     vis: Visibility,
     // package_name: &str,
     item_path: Option<syn::Path>,
@@ -114,6 +114,14 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
     // };
     let item_prefix = output.to_string();
 
+    let doc_type_info = first_ref
+        .iter()
+        .map(|p| {
+            let info = p.to_doc_info().to_string();
+            quote! {#[doc = concat!("- ", #info)]}
+        })
+        .collect::<pm2::TokenStream>();
+
     quote! {
         // #vis mod #macro_mod {
 
@@ -126,6 +134,8 @@ pub fn generate_func_macro<P: ToMacroPattern + Clone + PartialEq>(
 
             #[doc(inline)]
             #[doc = concat!("[`defamed`] wrapper for [`", #item_prefix, stringify!(#item_ident), "`]")]
+            #[doc = ""]
+            #doc_type_info
             #vis use #func_dunder_ident as #item_ident;
 
         // }

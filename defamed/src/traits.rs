@@ -39,10 +39,32 @@ pub trait StripAttributes {
     fn strip_attributes(&self) -> Self::Original;
 }
 
-/// Generate all permutations of a set of items.
-pub trait GeneratePermutations {
-    type Item;
-
-    /// Generate all permutations of the items.
-    fn generate_permutations(&self) -> Vec<Vec<Self::Item>>;
+/// Documentation info for an item
+#[derive(Clone, Debug)]
+pub struct DocInfo {
+    pub ident: String,
+    pub ty: String,
+    pub default_value: Option<String>,
 }
+
+impl std::fmt::Display for DocInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match &self.default_value {
+            Some(val) => write!(f, "`{}`: `{}` = `{}` ", self.ident, self.ty, val),
+            None => write!(f, "`{}`: `{}` ", self.ident, self.ty),
+        }
+    }
+}
+
+/// Document `Self`.
+pub trait ToDocInfo {
+    fn to_doc_info(&self) -> DocInfo;
+}
+
+// /// Generate all permutations of a set of items.
+// pub trait GeneratePermutations {
+//     type Item;
+
+//     /// Generate all permutations of the items.
+//     fn generate_permutations(&self) -> Vec<Vec<Self::Item>>;
+// }
