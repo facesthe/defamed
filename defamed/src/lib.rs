@@ -1,9 +1,4 @@
-#![cfg_attr(doctest, doc = include_str!("../../README.md"))]
-#![cfg_attr(not(doctest), doc = include_str!("../README.md"))]
-// about the doc attrs above:
-// when publishing the crate, doc refers to a symlink inside this crate.
-// when doctesting, doc refers to the actual file in the workspace root.
-// both doc attrs resolve identically, but I had to resort to this to doctest README.md.
+#![doc = include_str!("../README.md")]
 
 mod block_logic;
 mod macro_gen;
