@@ -368,7 +368,5 @@ mod tests {
             }
             None => panic!("last field must be invalid"),
         }
-
-        ()
     }
 }

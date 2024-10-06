@@ -355,7 +355,6 @@ mod tests {
         let _ = permutations
             .into_iter()
             .flatten()
-            .into_iter()
             .map(|item| {
                 assert!(matches!(item, PermutedItem::Named(_)));
             })
@@ -392,7 +391,7 @@ mod tests {
 
     #[test]
     fn test_permute_inner_named_defaults_9() {
-        let items = (0..9).into_iter().map(idx_to_str).collect::<Vec<_>>();
+        let items = (0..9).map(idx_to_str).collect::<Vec<_>>();
 
         for i in 1..=9 {
             let inputs = &items[..i];
@@ -528,7 +527,7 @@ mod tests {
     #[test]
     fn test_permute_9_positional() {
         for i in 1..=9 {
-            let items = (0..i).into_iter().map(idx_to_str).collect::<Vec<_>>();
+            let items = (0..i).map(idx_to_str).collect::<Vec<_>>();
 
             let permutations = permute(items.clone(), vec![]);
 
@@ -551,7 +550,7 @@ mod tests {
     #[test]
     fn test_permute_9_default() {
         for i in 1..=9 {
-            let items = (0..i).into_iter().map(idx_to_str).collect::<Vec<_>>();
+            let items = (0..i).map(idx_to_str).collect::<Vec<_>>();
             let permutations = permute(vec![], items.clone());
 
             println!("{} defaults: {} branches", i, permutations.len());
@@ -573,7 +572,7 @@ mod tests {
     fn test_permute_9_default_positional() {
         const NUM: usize = 9;
 
-        let items = (0..NUM).into_iter().map(idx_to_str).collect::<Vec<_>>();
+        let items = (0..NUM).map(idx_to_str).collect::<Vec<_>>();
 
         for i in 0..=NUM {
             let (pos, def) = items.split_at(i);
@@ -591,7 +590,7 @@ mod tests {
 
             assert_eq!(
                 first_perm.0,
-                pos.into_iter()
+                pos.iter()
                     .map(|item| PermutedItem::Named(item.to_owned()))
                     .collect::<Vec<_>>(),
                 "pos: {}, def: {}: first permutation must have the same order as the input",

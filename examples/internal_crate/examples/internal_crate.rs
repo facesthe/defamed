@@ -40,11 +40,11 @@ mod inner_module {
 
         #[allow(unused)]
         fn nested_inner_fn_2() {
-            // to use mod-local functions, they need to be explicitly imported.
+            // to use local functions defined in a parent module, they need to be explicitly imported.
             // this brings in the function and macro definitions into scope.
             use crate::top_level_local_function;
 
-            crate::top_level_local_function!();
+            top_level_local_function!();
         }
     }
 
