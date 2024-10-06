@@ -83,7 +83,7 @@ impl<T: Clone> PermutedItem<T> {
 ///
 /// The first permutation in the permutation matrix is guraranteed to contain
 /// only [PermutedItem::Named] elements in the original order (`required`, `default` concatenated).
-pub fn permute<T: Clone>(
+pub fn permute<T: Clone + Debug>(
     required: Vec<T>,
     default: Vec<T>,
 ) -> Vec<(Vec<PermutedItem<T>>, Vec<PermutedItem<T>>)> {
@@ -130,6 +130,9 @@ pub fn permute<T: Clone>(
             .collect(),
     };
 
+    // println!("default_permute: {:?}", default_permute);
+
+    // constructing intermediate permutations w/ named and default parameters
     let named_pos = match (named_permute.len(), default_permute.len()) {
         // we do not append completely empty sequences
         (0, 0) => return all_positional,
@@ -151,6 +154,10 @@ pub fn permute<T: Clone>(
             .collect::<Vec<_>>(),
     };
 
+    // println!("\nnamed_pos: {:?}", named_pos);
+    // println!("\nall_positional: {:?}", all_positional);
+
+    // append default positional special cases to the end
     [named_pos, all_positional].concat()
 }
 
@@ -212,8 +219,9 @@ fn permute_named<T: Clone>(named: &[T]) -> Vec<Vec<PermutedItem<T>>> {
 /// This function will not check for this.
 ///
 /// Additionally, default params can be used(named) or unused(default). These are also permuted as well.
-fn permute_named_default<T: Clone>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> {
+fn permute_named_default<T: Clone + Debug>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> {
     let base_permute = (0..(1 << defaults.len()))
+        .rev()
         .map(|num| {
             let seq = defaults
                 .iter()
@@ -226,12 +234,15 @@ fn permute_named_default<T: Clone>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> 
                         PermutedItem::Default(item.to_owned())
                     }
                 })
-                .rev()
+                // .rev()
                 .collect::<Vec<_>>();
 
             seq
         })
         .collect::<Vec<_>>();
+
+    println!("\nbase permute first: {:?}", base_permute.first());
+    println!("base permute last: {:?}", base_permute.last());
 
     let res = base_permute
         .into_iter()
@@ -239,17 +250,23 @@ fn permute_named_default<T: Clone>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> 
             let (used, unused) = PermutedItem::<T>::parition_named_defaults(&seq);
 
             let mut used_permute = permute::permute(used);
+            // used_permute.reverse();
 
-            for item in &mut used_permute {
-                item.extend_from_slice(&unused);
+            if unused.len() != 0 {
+                for item in &mut used_permute {
+                    item.extend_from_slice(&unused);
+                }
             }
 
             used_permute.into_iter()
         })
         .collect::<Vec<_>>();
 
+    println!("res first: {:?}", res.first());
+    println!("res last: {:?}", res.last());
+
     res.into_iter()
-        .rev()
+        // .rev()
         .filter(|item| !item.is_empty())
         .collect()
 }
@@ -258,7 +275,7 @@ fn permute_named_default<T: Clone>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> 
 ///
 /// This is for the special case where all preceding non-default parameters
 /// are used as positional parameters.
-fn permute_pos_default<T: Clone>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> {
+fn permute_pos_default<T: Clone + Debug>(defaults: &[T]) -> Vec<Vec<PermutedItem<T>>> {
     let res = (1..=defaults.len())
         .flat_map(|idx| {
             let (positional, named) = defaults.split_at(idx);
@@ -291,6 +308,23 @@ mod tests {
 
     use super::*;
 
+    /// Idx to valid rust ident
+    fn idx_to_str(mut idx: usize) -> String {
+        let mut id = vec![];
+        if idx == 0 {
+            id.push(0);
+        }
+
+        while idx != 0 {
+            id.push(idx % 26);
+            idx /= 26;
+        }
+
+        id.into_iter()
+            .map(|i| char::from_u32(i as u32 + 97).unwrap())
+            .collect::<String>()
+    }
+
     #[test]
     fn test_permute_tuple_struct() {
         fn assert_positional_default_split_at<T: Clone>(
@@ -317,9 +351,9 @@ mod tests {
         assert_positional_default_split_at(&permutations[2], 4);
     }
 
-    /// Test only named parameters
+    /// Test inner named permute function
     #[test]
-    fn test_permute_named() {
+    fn test_permute_inner_named() {
         let items = vec!["a", "b", "c", "d"];
 
         let permutations = permute_named(&items);
@@ -336,9 +370,9 @@ mod tests {
             .collect::<Vec<_>>();
     }
 
-    /// Test only named defaults
+    /// Test inner default permute function
     #[test]
-    fn test_permute_named_defaults() {
+    fn test_permute_inner_named_defaults() {
         let mut items = vec!["a", "b"];
 
         let permutations = permute_named_default(&items);
@@ -364,9 +398,33 @@ mod tests {
         assert!(permutations.is_empty());
     }
 
-    /// Test only positional defaults
     #[test]
-    fn test_permute_positional_defaults() {
+    fn test_permute_inner_named_defaults_9() {
+        let items = (0..9).into_iter().map(idx_to_str).collect::<Vec<_>>();
+
+        for i in 1..=9 {
+            let inputs = &items[..i];
+            let permutations = permute_named_default(inputs);
+            let first = permutations.first().unwrap();
+
+            println!("9 defaults: {} branches", permutations.len());
+            println!("first item: {:?}", first);
+
+            let expected = inputs
+                .iter()
+                .map(|item| PermutedItem::Named(item.to_owned()))
+                .collect::<Vec<_>>();
+
+            assert_eq!(
+                expected, *first,
+                "first permutation must have the same order as the input"
+            );
+        }
+    }
+
+    /// Test inner positional defaults permute function
+    #[test]
+    fn test_permute_inner_positional_defaults() {
         let items = vec!["a", "b", "c"];
 
         let permutations = permute_pos_default(&items);
@@ -392,9 +450,9 @@ mod tests {
         );
     }
 
-    /// Full permutation test without any default parameters
+    /// Test full permutation
     #[test]
-    fn test_permute_all_positional_named() {
+    fn test_permute_positional_named() {
         let items = vec!["a", "b", "c", "d"];
 
         let permutations = permute(items, vec![]);
@@ -427,13 +485,12 @@ mod tests {
             ],
             "first permutation must maintain the initial order"
         );
-
         assert_eq!(permutations.len(), 34);
     }
 
-    /// Test everything with default parameters
+    /// Test positional and default parameters
     #[test]
-    fn test_permute_all_positional_default() {
+    fn test_permute_positional_default() {
         let items = vec!["a", "b", "c", "d"];
         let defaults = vec!["e", "f"];
 
@@ -473,5 +530,82 @@ mod tests {
         // 5 permutations for default parameters
         // and 3 additional permutations for positional default parameters (not permuted)
         assert_eq!(permutations.len(), 34 * 5 + 3);
+    }
+
+    /// Test 1-10 positional parameters
+    #[test]
+    fn test_permute_9_positional() {
+        for i in 1..=9 {
+            let items = (0..i).into_iter().map(idx_to_str).collect::<Vec<_>>();
+
+            let permutations = permute(items.clone(), vec![]);
+
+            println!("{} positionals: {} branches", i, permutations.len());
+
+            let first_perm = permutations.first().unwrap();
+            assert_eq!(
+                first_perm.0,
+                items.clone()
+                    .into_iter()
+                    .map(|item| PermutedItem::Named(item.to_owned()))
+                    .collect::<Vec<_>>(),
+                "permutation for {} positional params: first permutation must have the same order as the input",
+                i
+            );
+        }
+    }
+
+    /// Test 1-10 default parameters
+    #[test]
+    fn test_permute_9_default() {
+        for i in 1..=9 {
+            let items = (0..i).into_iter().map(idx_to_str).collect::<Vec<_>>();
+            let permutations = permute(vec![], items.clone());
+
+            println!("{} defaults: {} branches", i, permutations.len());
+
+            let first_perm = permutations.first().unwrap();
+            assert_eq!(
+                    first_perm.1,
+                    items.clone()
+                        .into_iter()
+                        .map(|item| PermutedItem::Default(item.to_owned()))
+                        .collect::<Vec<_>>(),
+                    "permutation for {} default params: first permutation must have the same order as the input",
+                    i
+                );
+        }
+    }
+
+    #[test]
+    fn test_permute_9_default_positional() {
+        const NUM: usize = 9;
+
+        let items = (0..NUM).into_iter().map(idx_to_str).collect::<Vec<_>>();
+
+        for i in 0..=NUM {
+            let (pos, def) = items.split_at(i);
+
+            let permutations = permute(pos.to_vec(), def.to_vec());
+
+            println!(
+                "pos: {}, def: {}\tbranches: {}",
+                pos.len(),
+                def.len(),
+                permutations.len()
+            );
+
+            let first_perm = permutations.first().unwrap();
+
+            assert_eq!(
+                first_perm.0,
+                pos.into_iter()
+                    .map(|item| PermutedItem::Named(item.to_owned()))
+                    .collect::<Vec<_>>(),
+                "pos: {}, def: {}: first permutation must have the same order as the input",
+                pos.len(),
+                def.len()
+            );
+        }
     }
 }

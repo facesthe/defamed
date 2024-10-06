@@ -230,7 +230,15 @@ Invalid examples:
 ```rust ,compile_fail
 #[defamed::defamed(crate)]
 pub struct Public {
-    field: i32
+    pub field: i32
+}
+
+#[defamed::defamed(crate)]
+pub struct InvalidOrder {
+    /// default fields must be defined last - compile error
+    #[def]
+    pub field_a: i32,
+    pub field_b: u32,
 }
 
 // all fields must be public

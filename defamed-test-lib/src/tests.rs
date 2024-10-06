@@ -56,3 +56,20 @@ fn test_default_tuple_struct() {
     assert_eq!(b, DefaultTupleStruct(1, 2, 'a'));
     assert_eq!(c, DefaultTupleStruct(2, 4, 'f'));
 }
+
+#[test]
+fn test_all_default() {
+    // let a = all_default!();
+    // let b = all_default!(1);
+    // let c = all_default!(1, 2);
+    // let d = all_default!(1, 2, 3);
+    // // let e = all_default!(1, 2, 3, 4);
+    // // let f = all_default!(1, 2, 3, 4, 5);
+
+    // let identical = [a, b, c, d];
+    // assert!(identical.iter().all(|i| *i == 15));
+
+    // all_default!(e = 1, a = 2, c = 3, d = 4, b = 5);
+    // all_default!(c = 1, d = 3, b = 2);
+    // all_default!(a = 1, b = 2, c = 3, d = 4, e = 5);
+}

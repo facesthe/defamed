@@ -25,13 +25,21 @@ pub fn some_root_function<'a>(base: &'a str, #[def] concat: Option<&str>) -> Cow
     }
 }
 
+/// It is possible to annotate functions without any parameters,
+/// but nothing useful is generated.
+#[defamed::defamed(crate)]
+fn no_params() {}
+
 pub mod inner {
+
     /// Mask the base value with a mask and shift the result right by `r_shift` bits.
     /// Returns `true` if the LSB of the result is set, `false` otherwise.
     #[defamed::defamed(inner)]
     pub fn nested_inner_function(base: u8, mask: u8, #[def] r_shift: u8) -> bool {
         let inter = base & mask;
         let shifted = inter >> r_shift;
+
+        let _unit = super::no_params!();
 
         shifted & 1 != 0
     }
@@ -75,3 +83,38 @@ fn complex_function(
         None => intermediate,
     }
 }
+
+// #[defamed::defamed]
+// fn all_default(
+//     #[def(1)] a: i32,
+//     #[def(2)] b: i32,
+//     #[def(3)] c: i32,
+//     // #[def(4)] d: i32,
+//     // #[def(5)] e: i32,
+// ) -> i32 {
+//     a + b + c
+// }
+
+// generate a function with 10 positional arguments and 5 default arguments
+// defamed::defamed! {
+// #[defamed::defamed(crate)]
+// pub fn many_args(
+//     #[def(1)] a: i32,
+//     #[def(2)] b: i32,
+//     #[def(3)] c: i32,
+//     #[def(4)] d: i32,
+//     #[def(5)] e: i32,
+//     #[def(6)] f: i32,
+//     #[def(7)] g: i32,
+//     // #[def(8)] h: i32,
+//     // #[def(9)] i: i32,
+//     // #[def(10)] j: i32,
+//     // #[def(11)] k: i32,
+//     // #[def(12)] l: i32,
+//     // #[def(13)] m: i32,
+//     // #[def(14)] n: i32,
+//     // #[def(15)] o: i32,
+// ) -> i32 {
+//     a + b + c + d + e + f + g
+// }
+// // }

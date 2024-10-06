@@ -255,6 +255,15 @@ fn item_struct_struct(
         Err(e) => return e.to_compile_error().into(),
     };
 
+    if let Some(invalid) = n_fields.first_invalid() {
+        return syn::Error::new(
+            invalid.ident.span(),
+            "Default parameters must be placed after all positional parameters",
+        )
+        .to_compile_error()
+        .into();
+    }
+
     let stripped_fields = n_fields.strip_attributes();
     let fields_inner = n_fields.fields;
 
@@ -389,6 +398,15 @@ fn item_struct_tuple(
         Ok(un) => un,
         Err(e) => return e.to_compile_error().into(),
     };
+
+    if let Some(invalid) = un_fields.first_invalid() {
+        return syn::Error::new(
+            invalid.ident.span(),
+            "Default parameters must be placed after all positional parameters",
+        )
+        .to_compile_error()
+        .into();
+    }
 
     let stripped_fields = un_fields.strip_attributes();
     let fields_inner = un_fields.fields;

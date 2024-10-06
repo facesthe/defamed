@@ -1,6 +1,5 @@
 //! Function param stuff
 
-use core::panic;
 use std::fmt::Debug;
 
 use quote::{quote, ToTokens};
@@ -244,29 +243,15 @@ impl FunctionParams {
         res.into_iter().collect()
     }
 
-    /// Checks if the token sequence adheres to the following:
-    /// - Default parameters must be at the end of the sequence
-    ///
-    /// TODO: write a test for this
+    /// Returns the first non-default item after the first default item, if any.
     pub fn first_invalid_param(&self) -> Option<&FunctionParam> {
         let mut iter = self.params.iter();
+        let mut iter = self
+            .params
+            .iter()
+            .skip_while(|p| matches!(p.default_value, ParamAttr::None));
 
-        // advance to first default parameter
-        let first_default = loop {
-            if let Some(param) = iter.next() {
-                match param.default_value {
-                    ParamAttr::None => (),
-                    _ => break param,
-                }
-            } else {
-                return None;
-            }
-        };
-
-        match iter.all(|item| !matches!(item.default_value, ParamAttr::None)) {
-            true => None,
-            false => Some(first_default),
-        }
+        iter.find(|f| matches!(f.default_value, ParamAttr::None))
     }
 }
 
@@ -330,6 +315,7 @@ impl FunctionParam {
 mod tests {
     use super::*;
 
+    use proc_macro2::Span;
     use quote::quote;
     use syn::{punctuated::Punctuated, token::Comma, FnArg};
 
@@ -353,5 +339,37 @@ mod tests {
         let params = FunctionParams::from_punctuated(punct).unwrap();
 
         assert_eq!(params.params.len(), 4);
+    }
+
+    #[test]
+    fn test_first_invalid_param() {
+        let default_attr = syn::Ident::new(crate::DEFAULT_HELPER_ATTR, Span::call_site());
+
+        let item_struct = quote! {
+            fn item(
+                x: i32,
+                #[#default_attr] y: i32,
+                z: i32
+            ) {
+
+            }
+        };
+
+        let item_fn: syn::ItemFn = syn::parse2(item_struct).unwrap();
+
+        let fields = FunctionParams::from_punctuated(item_fn.sig.inputs).unwrap();
+
+        let first_invalid = fields.first_invalid_param();
+
+        println!("first invalid: {:?}", first_invalid);
+
+        match first_invalid {
+            Some(iv) => {
+                assert_eq!(*iv, fields.params[2]);
+            }
+            None => panic!("last field must be invalid"),
+        }
+
+        ()
     }
 }

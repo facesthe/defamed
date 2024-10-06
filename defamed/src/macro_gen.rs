@@ -1,5 +1,7 @@
 //! Function macro generators
 
+use std::fmt::Debug;
+
 use proc_macro2::{self as pm2, Span};
 use quote::{quote, ToTokens};
 use syn::{
@@ -36,7 +38,7 @@ impl ToString for MacroType {
 ///
 /// This macro generates code that calls the actual function,
 /// while reorderng and substituting parameters as needed.
-pub fn generate_func_macro<P: ToMacroPattern + ToDocInfo + Clone + PartialEq>(
+pub fn generate_func_macro<P: ToMacroPattern + ToDocInfo + Clone + PartialEq + Debug>(
     vis: Visibility,
     // package_name: &str,
     item_path: Option<syn::Path>,
@@ -180,9 +182,14 @@ fn create_macro_signature<P: ToMacroPattern>(params: &[P]) -> pm2::TokenStream {
 /// If there are more elements in `params` than in `reference`, the extra elements are appended to the end.
 fn create_func_call_signature<P>(reference: &[P], params: &[P]) -> pm2::TokenStream
 where
-    P: ToMacroPattern + PartialEq,
+    P: ToMacroPattern + PartialEq + Debug,
 {
-    assert!(reference.len() <= params.len());
+    assert!(
+        reference.len() <= params.len(),
+        "ref: {:?}\nparams: {:?}",
+        reference,
+        params
+    );
 
     let mut seq: Punctuated<pm2::TokenStream, Comma> = reference
         .iter()

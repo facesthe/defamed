@@ -229,6 +229,16 @@ impl StructFields {
 
         Ok(Self { ident, fields })
     }
+
+    /// Returns the first non-default item after the first default item, if any.
+    pub fn first_invalid(&self) -> Option<&StructField> {
+        let mut iter = self
+            .fields
+            .iter()
+            .skip_while(|f| matches!(f.default_value, ParamAttr::None));
+
+        iter.find(|f| matches!(f.default_value, ParamAttr::None))
+    }
 }
 
 impl StructField {
@@ -285,7 +295,7 @@ impl StructField {
 
                 while tup_id != 0 {
                     id.push(tup_id % 26);
-                    tup_id /= 10;
+                    tup_id /= 26;
                 }
 
                 let tup_ident = id
@@ -366,8 +376,7 @@ mod tests {
 
         let fields = match item_struct.fields {
             syn::Fields::Named(fields_named) => fields_named,
-            syn::Fields::Unnamed(fields_unnamed) => todo!(),
-            syn::Fields::Unit => todo!(),
+            syn::Fields::Unnamed(_) | syn::Fields::Unit => panic!("item must be named struct"),
         };
 
         let fields = StructFields::from_named(item_struct.ident, fields.named).unwrap();
@@ -397,7 +406,7 @@ mod tests {
         .unwrap();
 
         let fields = match item_struct.fields {
-            syn::Fields::Named(fields_named) => panic!("expected unnamed fields"),
+            syn::Fields::Named(_) => panic!("expected unnamed fields"),
             syn::Fields::Unnamed(fields_unnamed) => fields_unnamed,
             syn::Fields::Unit => panic!("expected unnamed fields"),
         };
@@ -410,6 +419,40 @@ mod tests {
         assert!(matches!(inner[0].default_value, ParamAttr::None));
         assert!(matches!(inner[1].default_value, ParamAttr::Default));
         assert!(matches!(inner[2].default_value, ParamAttr::Value(_)));
+    }
+
+    #[test]
+    fn test_first_invalid_param() {
+        let default_attr = syn::Ident::new(crate::DEFAULT_HELPER_ATTR, Span::call_site());
+
+        let item_struct = quote! {
+            struct Item {
+                pub x: i32,
+                #[#default_attr]
+                pub y: i32,
+                pub z: i32,
+            }
+        };
+
+        let item_struct: syn::ItemStruct = syn::parse2(item_struct).unwrap();
+
+        let fields = match item_struct.fields {
+            syn::Fields::Named(fields_named) => fields_named,
+            syn::Fields::Unnamed(_) | syn::Fields::Unit => panic!("item must be named struct"),
+        };
+
+        let fields = StructFields::from_named(item_struct.ident, fields.named).unwrap();
+
+        let first_invalid = fields.first_invalid();
+
+        println!("first invalid: {:?}", first_invalid);
+
+        match first_invalid {
+            Some(iv) => {
+                assert_eq!(*iv, fields.fields[2]);
+            }
+            None => panic!("last field must be invalid"),
+        }
     }
 
     #[test]
