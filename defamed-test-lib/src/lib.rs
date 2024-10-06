@@ -1,5 +1,6 @@
 //! Test lib for defamed
 //!
+#![allow(clippy::let_unit_value)]
 
 use std::borrow::Cow;
 

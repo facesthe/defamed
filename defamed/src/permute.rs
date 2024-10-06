@@ -83,13 +83,13 @@ impl<T: Clone> PermutedItem<T> {
 ///
 /// The first permutation in the permutation matrix is guraranteed to contain
 /// only [PermutedItem::Named] elements in the original order (`required`, `default` concatenated).
+#[allow(clippy::type_complexity)]
 pub fn permute<T: Clone + Debug>(
     required: Vec<T>,
     default: Vec<T>,
 ) -> Vec<(Vec<PermutedItem<T>>, Vec<PermutedItem<T>>)> {
     let named_permute = (0..=required.len())
         .flat_map(|idx| {
-            // let opp_idx = required.len() - i;
             let (positional, named) = required.split_at(idx);
 
             let positional = positional
@@ -105,6 +105,13 @@ pub fn permute<T: Clone + Debug>(
                 .into_iter()
         })
         .collect::<Vec<_>>();
+
+    debug_assert!(if let Some(l) = named_permute.last() {
+        l.iter()
+            .all(|item| matches!(item, PermutedItem::Positional(_)))
+    } else {
+        true
+    });
 
     let default_permute = permute_named_default(&default);
     let default_positional_permute = permute_pos_default(&default);
@@ -130,8 +137,6 @@ pub fn permute<T: Clone + Debug>(
             .collect(),
     };
 
-    // println!("default_permute: {:?}", default_permute);
-
     // constructing intermediate permutations w/ named and default parameters
     let named_pos = match (named_permute.len(), default_permute.len()) {
         // we do not append completely empty sequences
@@ -154,9 +159,6 @@ pub fn permute<T: Clone + Debug>(
             .collect::<Vec<_>>(),
     };
 
-    // println!("\nnamed_pos: {:?}", named_pos);
-    // println!("\nall_positional: {:?}", all_positional);
-
     // append default positional special cases to the end
     [named_pos, all_positional].concat()
 }
@@ -175,7 +177,6 @@ pub fn permute_tuple_struct<T: Clone>(
         .collect::<Vec<_>>();
 
     let res = (0..default.len() + 1)
-        .into_iter()
         .map(|default_idx| {
             let (def_pos, def_unused) = default.split_at(default_idx);
             let def_pos_perm = def_pos
@@ -215,6 +216,8 @@ fn permute_named<T: Clone>(named: &[T]) -> Vec<Vec<PermutedItem<T>>> {
 /// Perform permutations for default parameters. All permuted values are named.
 /// For permutations of positional defaults see [permute_pos_default].
 ///
+/// The first permutation in the matrix is in the original order of the input.
+///
 /// Each item in the slice must have a default value.
 /// This function will not check for this.
 ///
@@ -234,15 +237,11 @@ fn permute_named_default<T: Clone + Debug>(defaults: &[T]) -> Vec<Vec<PermutedIt
                         PermutedItem::Default(item.to_owned())
                     }
                 })
-                // .rev()
                 .collect::<Vec<_>>();
 
             seq
         })
         .collect::<Vec<_>>();
-
-    println!("\nbase permute first: {:?}", base_permute.first());
-    println!("base permute last: {:?}", base_permute.last());
 
     let res = base_permute
         .into_iter()
@@ -250,9 +249,8 @@ fn permute_named_default<T: Clone + Debug>(defaults: &[T]) -> Vec<Vec<PermutedIt
             let (used, unused) = PermutedItem::<T>::parition_named_defaults(&seq);
 
             let mut used_permute = permute::permute(used);
-            // used_permute.reverse();
 
-            if unused.len() != 0 {
+            if !unused.is_empty() {
                 for item in &mut used_permute {
                     item.extend_from_slice(&unused);
                 }
@@ -262,13 +260,7 @@ fn permute_named_default<T: Clone + Debug>(defaults: &[T]) -> Vec<Vec<PermutedIt
         })
         .collect::<Vec<_>>();
 
-    println!("res first: {:?}", res.first());
-    println!("res last: {:?}", res.last());
-
-    res.into_iter()
-        // .rev()
-        .filter(|item| !item.is_empty())
-        .collect()
+    res.into_iter().filter(|item| !item.is_empty()).collect()
 }
 
 /// Perform permutations for positional default permutations.

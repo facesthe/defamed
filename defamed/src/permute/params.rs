@@ -245,7 +245,6 @@ impl FunctionParams {
 
     /// Returns the first non-default item after the first default item, if any.
     pub fn first_invalid_param(&self) -> Option<&FunctionParam> {
-        let mut iter = self.params.iter();
         let mut iter = self
             .params
             .iter()

@@ -15,6 +15,7 @@ use super::{ParamAttr, PermutedItem};
 /// Parsed struct fields
 #[derive(Clone, Debug)]
 pub struct StructFields {
+    #[allow(unused)]
     pub ident: syn::Ident,
     pub fields: Vec<StructField>,
 }
@@ -160,8 +161,8 @@ impl StripAttributes for StructFields {
                 attrs: f
                     .attrs
                     .iter()
-                    .cloned()
                     .filter(|a| !a.path().is_ident(crate::DEFAULT_HELPER_ATTR))
+                    .cloned()
                     .collect::<Vec<_>>(),
                 vis: f.vis.clone(),
                 mutability: syn::FieldMutability::None,
@@ -303,7 +304,7 @@ impl StructField {
                     .map(|i| char::from_u32(i as u32 + 97).unwrap())
                     .collect::<String>();
 
-                assert!(tup_ident.len() != 0);
+                assert!(!tup_ident.is_empty());
 
                 Self {
                     vis: field.vis,
@@ -349,13 +350,12 @@ impl StructField {
 
 #[cfg(test)]
 mod tests {
-    use std::error::Error;
 
     use super::*;
 
     use proc_macro2::Span;
     use quote::quote;
-    use syn::{punctuated::Punctuated, Ident};
+    use syn::Ident;
 
     #[test]
     fn test_init_named_field() {

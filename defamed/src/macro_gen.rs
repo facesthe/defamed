@@ -1,6 +1,6 @@
 //! Function macro generators
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use proc_macro2::{self as pm2, Span};
 use quote::{quote, ToTokens};
@@ -23,13 +23,15 @@ pub enum MacroType {
 }
 
 /// Converts `self` to doc item disambiguation prefix
-impl ToString for MacroType {
-    fn to_string(&self) -> String {
-        match self {
-            MacroType::Function => "fn@".to_string(),
-            MacroType::Struct => "struct@".to_string(),
-            MacroType::StructTuple => "struct@".to_string(),
-        }
+impl Display for MacroType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let item = match self {
+            MacroType::Function => "fn@",
+            MacroType::Struct => "struct@",
+            MacroType::StructTuple => "struct@",
+        };
+
+        write!(f, "{}", item)
     }
 }
 

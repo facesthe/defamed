@@ -175,18 +175,16 @@ pub fn item_struct(input: syn::ItemStruct, s_path: Option<syn::Path>) -> ProcOut
             unnamed_fields,
         ),
         syn::Fields::Unit => {
-            return {
-                let warning = proc_macro_warning::FormattedWarning::new_deprecated(
+            let warning = proc_macro_warning::FormattedWarning::new_deprecated(
                     "IrrelevantMacro",
                     "Remove this attribute macro. Unit structs do not contain any fields and cannot have default parameters.",
                     input.ident.span(),
                 );
 
-                quote! {
-                    #warning
-                }
-                .into()
+            quote! {
+                #warning
             }
+            .into()
         }
     }
 }
@@ -216,15 +214,13 @@ fn item_struct_struct(
                 .into();
             }
 
-            if matches!(p, None) {
-                if !path.is_ident("self") {
-                    return syn::Error::new(
-                        ident.span(),
-                        "Attribute requires a path to the struct for public structs",
-                    )
-                    .to_compile_error()
-                    .into();
-                }
+            if p.is_none() && !path.is_ident("self") {
+                return syn::Error::new(
+                    ident.span(),
+                    "Attribute requires a path to the struct for public structs",
+                )
+                .to_compile_error()
+                .into();
             }
         }
         (syn::Visibility::Public(_), p) => {
@@ -238,7 +234,7 @@ fn item_struct_struct(
                     .into();
             }
 
-            if matches!(p, None) {
+            if p.is_none() {
                 return syn::Error::new(
                     ident.span(),
                     "Attribute requires a path to the struct for public structs",
@@ -357,15 +353,13 @@ fn item_struct_tuple(
                 .into();
             }
 
-            if matches!(p, None) {
-                if !path.is_ident("self") {
-                    return syn::Error::new(
-                        ident.span(),
-                        "Attribute requires a path to the struct tuple for public structs",
-                    )
-                    .to_compile_error()
-                    .into();
-                }
+            if p.is_none() && !path.is_ident("self") {
+                return syn::Error::new(
+                    ident.span(),
+                    "Attribute requires a path to the struct tuple for public structs",
+                )
+                .to_compile_error()
+                .into();
             }
         }
         (syn::Visibility::Public(_), p) => {
@@ -382,7 +376,7 @@ fn item_struct_tuple(
                 .into();
             }
 
-            if matches!(p, None) {
+            if p.is_none() {
                 return syn::Error::new(
                     ident.span(),
                     "Attribute requires a path to the struct for public struct tuples",
