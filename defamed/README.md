@@ -250,15 +250,23 @@ pub struct PublicTuple(pub i32, #[def] i32);
 struct UnitStruct;
 ```
 
+## Macro generation size
+> [!CAUTION]
+> The size of the macro generated (number of match arms) is exponentially related to $max(positional, default)$.
+> This is because the macro contains all permutations of positional and default parameters.
+
+It is recommended that items do not exceed 9 positional and/or 9 default parameters.
+Exceeding this number **will** cause the build times to increase significantly.
+
 ## Benefits
 - Better ergonomics
 - More clarity during code reviews
-- Seamless addition of default parameters to existing functions without breaking compatibility
+- Seamless addition of default parameters to existing items without breaking compatibility
 
 ## Limitations
-- works only for standalone functions defined outside of an `impl` block
-- requires specifying fully qualified module path to function
-- renaming function parameters requires updating all macro invocations
+- applicable for standalone functions defined outside of an `impl` block
+- requires specifying fully qualified module path to item
+- renaming parameters requires updating all macro invocations
 
 <!-- ## Notes 4 me
 - Determine macro invocation semantics
