@@ -259,43 +259,8 @@ impl FunctionParam {
     pub fn from_pat_type(punct: syn::PatType) -> Result<Self, syn::Error> {
         let pat = &punct.pat;
         let ty = &punct.ty;
-        let mut default_value = ParamAttr::None;
 
-        // look for default attr
-        if !punct.attrs.is_empty() {
-            for attr in &punct.attrs {
-                if attr.path().is_ident(crate::DEFAULT_HELPER_ATTR) {
-                    let meta = attr.meta.clone();
-
-                    match meta {
-                        syn::Meta::Path(_) => default_value = ParamAttr::Default,
-                        syn::Meta::List(l) => {
-                            let l_span = l.span();
-
-                            let first_item = l.tokens.into_iter().next().ok_or(syn::Error::new(
-                                l_span,
-                                "expected at least 1 item in metalist",
-                            ))?;
-
-                            let e: syn::Expr = syn::parse2(first_item.to_token_stream())?;
-                            default_value = ParamAttr::Value(e);
-                        }
-                        syn::Meta::NameValue(nv) => {
-                            let e = syn::Error::new(
-                                    nv.span(),
-                                    format!("name-values are not supported. Use #[{}] or #[{}(CONST_EXPRESSION)] instead.",
-                                        crate::DEFAULT_HELPER_ATTR,
-                                        crate::DEFAULT_HELPER_ATTR
-                                    ),
-                                );
-                            return Err(e);
-                        }
-                    }
-
-                    break;
-                }
-            }
-        }
+        let default_value = ParamAttr::try_from_attrs(&punct.attrs)?;
 
         Ok(Self {
             pat: *pat.clone(),

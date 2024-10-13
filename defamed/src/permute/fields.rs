@@ -249,41 +249,7 @@ impl StructField {
         tuple_elem: Option<usize>,
     ) -> Result<Self, syn::Error> {
         // look for default attr
-        let mut default_value = ParamAttr::None;
-        if !field.attrs.is_empty() {
-            for attr in &field.attrs {
-                if attr.path().is_ident(crate::DEFAULT_HELPER_ATTR) {
-                    let meta = attr.meta.clone();
-
-                    match meta {
-                        syn::Meta::Path(_) => default_value = ParamAttr::Default,
-                        syn::Meta::List(l) => {
-                            let l_span = l.span();
-
-                            let first_item = l.tokens.into_iter().next().ok_or(syn::Error::new(
-                                l_span,
-                                "expected at least 1 item in metalist",
-                            ))?;
-
-                            let e: syn::Expr = syn::parse2(first_item.to_token_stream())?;
-                            default_value = ParamAttr::Value(e);
-                        }
-                        syn::Meta::NameValue(nv) => {
-                            let e = syn::Error::new(
-                                    nv.span(),
-                                    format!("name-values are not supported. Use #[{}] or #[{}(CONST_EXPRESSION)] instead.",
-                                        crate::DEFAULT_HELPER_ATTR,
-                                        crate::DEFAULT_HELPER_ATTR
-                                    ),
-                                );
-                            return Err(e);
-                        }
-                    }
-
-                    break;
-                }
-            }
-        };
+        let default_value = ParamAttr::try_from_attrs(&field.attrs)?;
 
         let res = match tuple_elem {
             Some(mut tup_id) => {

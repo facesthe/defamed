@@ -3,6 +3,9 @@
 
 use std::fmt::Debug;
 
+use quote::ToTokens;
+use syn::spanned::Spanned;
+
 use crate::traits::ToDocInfo;
 
 pub mod fields;
@@ -49,6 +52,80 @@ impl<T: Clone + PartialEq> PartialEq for PermutedItem<T> {
 impl<T: Clone + ToDocInfo> ToDocInfo for PermutedItem<T> {
     fn to_doc_info(&self) -> crate::traits::DocInfo {
         self.inner().to_doc_info()
+    }
+}
+
+impl ParamAttr {
+    /// Searches for the correct default attribute and returns the value or a compile error.
+    pub fn try_from_attrs(attrs: &[syn::Attribute]) -> Result<Self, syn::Error> {
+        let mut val = Self::None;
+
+        for a in attrs {
+            if a.path().is_ident(crate::DEFAULT_HELPER_ATTR) {
+                let meta = a.meta.clone();
+
+                val = Self::try_from_attrs_inner(meta)?;
+                break;
+            }
+        }
+
+        Ok(val)
+    }
+
+    fn try_from_attrs_inner(meta: syn::Meta) -> Result<Self, syn::Error> {
+        match meta {
+            syn::Meta::Path(_) => Ok(Self::Default),
+            syn::Meta::List(ml) => {
+                let l_span = ml.span();
+
+                let list_items = ml.tokens.into_iter().collect::<Vec<_>>();
+
+                match list_items.len() {
+                    1 => {
+                        let item = list_items.first().unwrap();
+                        let expr = syn::parse2::<syn::Expr>(item.to_token_stream())?;
+
+                        Ok(Self::Value(expr))
+                    }
+                    2 => {
+                        let (first, second) = {
+                            let mut iter = list_items.into_iter();
+                            (iter.next().unwrap(), iter.next().unwrap())
+                        };
+
+                        if syn::parse2::<syn::Token![const]>(first.to_token_stream()).is_err() {
+                            let e = syn::Error::new(
+                                first.span(),
+                                "expected `const` keyword before identifier",
+                            );
+
+                            return Err(e);
+                        }
+
+                        let expr = syn::parse2::<syn::Expr>(second.to_token_stream())?;
+                        Ok(Self::Value(expr))
+                    }
+                    other => {
+                        let e = syn::Error::new(
+                            l_span,
+                            format!("expected 1 or 2 items in metalist, found {}", other),
+                        );
+                        Err(e)
+                    }
+                }
+            }
+            syn::Meta::NameValue(nv) => {
+                let e = syn::Error::new(
+                    nv.span(),
+                    format!("name-values are not supported. Use #[{}], #[{}(CONST_EXPR)], #[{}(const CONST_IDENT)] instead.",
+                        crate::DEFAULT_HELPER_ATTR,
+                        crate::DEFAULT_HELPER_ATTR,
+                        crate::DEFAULT_HELPER_ATTR,
+                    ),
+                );
+                Err(e)
+            }
+        }
     }
 }
 
